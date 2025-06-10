@@ -21,3 +21,15 @@ CREATE TABLE mots (
     longueur INT NOT NULL,
     difficulte ENUM('facile', 'moyen', 'difficile') NOT NULL
 );
+
+CREATE TABLE parties (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    mot_id INT NOT NULL,
+    nb_tentatives INT NOT NULL,
+    score INT,
+    status ENUM('en_cours', 'gagnee', 'perdue') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (mot_id) REFERENCES mots(id)
+);

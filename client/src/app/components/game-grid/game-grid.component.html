@@ -1,0 +1,112 @@
+<div class="game-container">
+  <!-- En-tête du jeu -->
+  <div class="game-header">
+    <h1>Motus</h1>
+    <div class="game-info">
+      <p>Trouvez le mot de {{ wordLength }} lettres</p>
+    </div>
+  </div>
+
+  <!-- États du jeu -->
+  <div class="game-status">
+    <div *ngIf="hint" class="hint-container">
+      <div class="hint-label">💡 Indice :</div>
+      <div class="hint-text">Le mot commence par la lettre <strong>{{ hint }}</strong></div>
+      <div class="hint-subtext">Cette lettre est déjà placée dans la première case</div>
+    </div>
+    <div class="attempts">Tentatives restantes : {{ remainingAttempts }}</div>
+    <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
+  </div>
+
+  <!-- Zone de jeu principale avec légende sur le côté -->
+  <div class="main-game-area" *ngIf="!isLoading">
+    <!-- Grille de jeu -->
+    <div class="game-grid" [class.loading]="isLoading">
+      <div class="grid-row" *ngFor="let row of grid; let i = index">
+        <div 
+          class="grid-cell" 
+          [ngClass]="{
+            'correct': cell.state === 'correct',
+            'present': cell.state === 'present', 
+            'absent': cell.state === 'absent',
+            'hint': cell.state === 'hint',
+            'current': i === currentRow && j === currentCol,
+            'empty': cell.state === 'empty'
+          }"
+          *ngFor="let cell of row; let j = index"
+        >
+          {{ cell.letter }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Légende des couleurs (sur le côté en grand écran) -->
+    <div class="color-legend">
+      <h3>🎨 Légende</h3>
+      <div class="legend-items">
+        <div class="legend-item">
+          <div class="legend-cell correct-motus">A</div>
+          <div class="legend-text">
+            <strong>Carré rouge :</strong> Correcte et bien placée
+          </div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-cell present-motus">B</div>
+          <div class="legend-text">
+            <strong>Cercle jaune :</strong> Présente mais mal placée
+          </div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-cell absent-motus">C</div>
+          <div class="legend-text">
+            <strong>Fond bleu :</strong> Absente du mot
+          </div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-cell hint">{{ hint || 'M' }}</div>
+          <div class="legend-text">
+            <strong>Indice :</strong> Première lettre révélée
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Message de chargement -->
+  <div *ngIf="isLoading" class="loading-message">
+    <p>Chargement d'un nouveau mot...</p>
+  </div>
+
+  <!-- Clavier virtuel -->
+  <app-keyboard 
+    (keyPressed)="handleKeyPress($event)"
+    [disabled]="isLoading || gameOver"
+    [keyStates]="keyStates"
+  ></app-keyboard>
+
+  <!-- Message de fin de partie -->
+  <div *ngIf="gameOver" class="game-over">
+    <h2>Partie terminée !</h2>
+    <div class="game-result">
+      <p *ngIf="currentRow < 6">🎉 Félicitations ! Vous avez trouvé le mot !</p>
+      <p *ngIf="currentRow >= 6">😔 Dommage ! Vous n'avez pas trouvé le mot...</p>
+      <div *ngIf="targetWord && targetWord !== 'X'.repeat(wordLength)" class="target-word">
+        <div class="word-label">Le mot à trouver était :</div>
+        <div class="word-value">{{ targetWord }}</div>
+      </div>
+    </div>
+    <button class="restart-button" (click)="restartGame()">Nouvelle partie</button>
+  </div>
+
+  <!-- Statistiques (optionnel) -->
+  <div class="game-stats" *ngIf="!isLoading && !gameOver">
+    <div class="stat-item">
+      <span class="stat-label">Longueur du mot :</span>
+      <span class="stat-value">{{ wordLength }} lettres</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Ligne actuelle :</span>
+      <span class="stat-value">{{ currentRow + 1 }}/6</span>
+    </div>
+  </div>
+</div>

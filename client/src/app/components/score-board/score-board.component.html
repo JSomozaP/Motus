@@ -1,0 +1,34 @@
+<div class="score-board">
+  <h2>Meilleurs scores</h2>
+  
+  <div *ngIf="isLoading" class="loading">
+    Chargement des scores...
+  </div>
+
+  <div *ngIf="errorMessage" class="error">
+    {{errorMessage}}
+  </div>
+
+  <table *ngIf="!isLoading && scores.length > 0">
+    <thead>
+      <tr>
+        <th>Position</th>
+        <th>Joueur</th>
+        <th>Score</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let score of scores; let i = index">
+        <td>{{i + 1}}</td>
+        <td>{{score.username}}</td>
+        <td>{{score.score}}</td>
+        <td>{{score.date | date:'dd/MM/yyyy HH:mm'}}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div *ngIf="!isLoading && scores.length === 0" class="no-scores">
+    Aucun score enregistré
+  </div>
+</div>

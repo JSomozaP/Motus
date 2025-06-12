@@ -1,14 +1,10 @@
-import express from 'express';
-import { getRandomWord, checkWord, getLeaderboard, getPlayerHistory, getPlayerStats } from '../controllers/gameController.js';
-import authMiddleware from '../middleware/authMiddleware.js';
+import { Router } from 'express';
+import { getRandomWord, checkWord } from '../controllers/gameController.js';
 
-const router = express.Router();
+const router = Router();
 
-// Routes protégées par authentification
-router.get('/word', authMiddleware, getRandomWord);
-router.post('/check', authMiddleware, checkWord);
-router.get('/leaderboard', authMiddleware, getLeaderboard);
-router.get('/history', authMiddleware, getPlayerHistory);
-router.get('/stats', authMiddleware, getPlayerStats);
+// Routes du jeu
+router.get('/word', getRandomWord); 
+router.post('/check', checkWord);   
 
 export default router;

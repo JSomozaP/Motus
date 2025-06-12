@@ -1,0 +1,583 @@
+.game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  max-width: 900px; // Augmenté pour le nouveau layout
+  margin: 0 auto;
+}
+
+.game-header {
+  text-align: center;
+  
+  h1 {
+    color: #2c3e50;
+    font-size: 2.5em;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .game-info {
+    margin-top: 10px;
+    
+    p {
+      font-size: 1.2em;
+      color: #555;
+      margin: 0;
+    }
+  }
+}
+
+.game-status {
+  text-align: center;
+  width: 100%;
+
+  .hint-container {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 2px solid #f39c12;
+    border-radius: 15px;
+    padding: 15px 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 8px rgba(243, 156, 18, 0.2);
+    
+    .hint-label {
+      font-size: 1.1em;
+      color: #d68910;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    
+    .hint-text {
+      font-size: 1.3em;
+      color: #b7950b;
+      font-weight: bold;
+      margin-bottom: 5px;
+      
+      strong {
+        background-color: #f39c12;
+        color: white;
+        padding: 3px 8px;
+        border-radius: 5px;
+        font-size: 1.2em;
+      }
+    }
+    
+    .hint-subtext {
+      font-size: 0.9em;
+      color: #85751f;
+      font-style: italic;
+    }
+  }
+
+  .hint {
+    font-size: 1.3em;
+    color: #e67e22;
+    margin-bottom: 10px;
+    font-weight: bold;
+    background-color: #fff3cd;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 2px solid #ffc107;
+  }
+
+  .attempts {
+    font-weight: bold;
+    color: #2c3e50;
+    font-size: 1.1em;
+  }
+
+  .error-message {
+    color: #dc3545;
+    margin-top: 10px;
+    background-color: #f8d7da;
+    padding: 10px;
+    border-radius: 5px;
+  }
+}
+
+// Zone de jeu principale avec layout adaptatif
+.main-game-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  
+  // Layout côte à côte pour grands écrans
+  @media (min-width: 1024px) {
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 40px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+}
+
+.game-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  
+  &.loading {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+.grid-row {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.grid-cell {
+  width: 50px;
+  height: 50px;
+  border: 2px solid #bdc3c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+  text-transform: uppercase;
+  transition: all 0.3s ease;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+
+  &.empty {
+    background-color: white;
+    color: #2c3e50;
+  }
+
+  &.current {
+    border-color: #3498db;
+    border-width: 3px;
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+  }
+
+  &.hint {
+    background-color: #f39c12;
+    color: white;
+    border-color: #e67e22;
+    animation: pulse 2s infinite;
+  }
+
+  // Style Motus traditionnel - Carré rouge pour bien placées
+  &.correct {
+    background-color: white;
+    color: #dc3545;
+    border: 3px solid #dc3545;
+    border-radius: 5px;
+    animation: flip 0.6s ease-in-out;
+  }
+
+  // Style Motus traditionnel - Cercle jaune pour mal placées
+  &.present {
+    background-color: white;
+    color: #ffc107;
+    border: 3px solid #ffc107;
+    border-radius: 50%;
+    animation: flip 0.6s ease-in-out;
+  }
+
+  // Style Motus traditionnel - Fond bleu pour absentes
+  &.absent {
+    background-color: #007bff;
+    color: white;
+    border: 2px solid #0056b3;
+    animation: flip 0.6s ease-in-out;
+  }
+
+  &.invalid {
+    background-color: #e74c3c;
+    color: white;
+    border-color: #c0392b;
+    animation: shake 0.5s ease-in-out;
+  }
+}
+
+.color-legend {
+  background-color: #f8f9fa;
+  border-radius: 15px;
+  padding: 20px;
+  margin: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  max-width: 500px;
+  
+  // Style compact pour grand écran
+  @media (min-width: 1024px) {
+    max-width: 280px;
+    min-width: 260px;
+    
+    h3 {
+      font-size: 1.2em;
+      margin-bottom: 12px;
+    }
+  }
+  
+  h3 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+  }
+  
+  .legend-items {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    
+    @media (min-width: 1024px) {
+      gap: 10px;
+    }
+  }
+  
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 8px 12px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    
+    @media (min-width: 1024px) {
+      gap: 12px;
+      padding: 6px 10px;
+    }
+    
+    .legend-cell {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: bold;
+      text-transform: uppercase;
+      flex-shrink: 0;
+      position: relative;
+      
+      @media (min-width: 1024px) {
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
+      }
+      
+      // Carré rouge pour les lettres bien placées
+      &.correct-motus {
+        background-color: white;
+        color: #dc3545;
+        border: 3px solid #dc3545;
+        border-radius: 5px;
+        
+        @media (min-width: 1024px) {
+          border-width: 2px;
+        }
+      }
+      
+      // Cercle jaune pour les lettres mal placées
+      &.present-motus {
+        background-color: white;
+        color: #ffc107;
+        border: 3px solid #ffc107;
+        border-radius: 50%;
+        
+        @media (min-width: 1024px) {
+          border-width: 2px;
+        }
+      }
+      
+      // Fond bleu pour les lettres absentes
+      &.absent-motus {
+        background-color: #007bff;
+        color: white;
+        border: 2px solid #0056b3;
+        border-radius: 5px;
+      }
+      
+      // Indice (style existant)
+      &.hint {
+        background-color: #f39c12;
+        color: white;
+        border: 2px solid #e67e22;
+        border-radius: 5px;
+      }
+    }
+    
+    .legend-text {
+      flex: 1;
+      font-size: 1em;
+      color: #2c3e50;
+      
+      @media (min-width: 1024px) {
+        font-size: 0.9em;
+      }
+      
+      strong {
+        color: #2c3e50;
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+.loading-message {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  
+  p {
+    margin: 0;
+    font-size: 1.1em;
+  }
+}
+
+.game-over {
+  text-align: center;
+  padding: 30px;
+  background-color: #f8f9fa;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  
+  h2 {
+    color: #2c3e50;
+    margin-bottom: 15px;
+    font-size: 2em;
+  }
+  
+  .game-result {
+    margin: 20px 0;
+    
+    p {
+      font-size: 1.2em;
+      margin: 10px 0;
+    }
+    
+    .target-word {
+      font-size: 1.5em;
+      font-weight: bold;
+      color: #e74c3c;
+      background-color: #f8d7da;
+      padding: 10px 20px;
+      border-radius: 10px;
+      margin: 15px 0;
+      border: 2px solid #dc3545;
+      
+      .word-label {
+        font-size: 0.9em;
+        color: #721c24;
+        margin-bottom: 5px;
+      }
+      
+      .word-value {
+        font-size: 1.8em;
+        letter-spacing: 3px;
+        color: #dc3545;
+      }
+    }
+  }
+
+  .restart-button {
+    padding: 12px 25px;
+    font-size: 1.2em;
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    
+    &:hover {
+      background-color: #229954;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
+  }
+}
+
+.game-stats {
+  display: flex;
+  gap: 30px;
+  background-color: #ecf0f1;
+  padding: 15px 25px;
+  border-radius: 10px;
+  margin-top: 20px;
+  
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    
+    .stat-label {
+      font-size: 0.9em;
+      color: #7f8c8d;
+      margin-bottom: 5px;
+    }
+    
+    .stat-value {
+      font-size: 1.1em;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+  }
+}
+
+// Animations
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes flip {
+  0% {
+    transform: rotateY(0);
+  }
+  50% {
+    transform: rotateY(90deg);
+  }
+  100% {
+    transform: rotateY(0);
+  }
+}
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+// Responsive design
+@media (max-width: 768px) {
+  .game-container {
+    padding: 10px;
+    max-width: 100%;
+  }
+  
+  .grid-cell {
+    width: 45px;
+    height: 45px;
+    font-size: 20px;
+    
+    // Ajustement des bordures pour mobile
+    &.correct,
+    &.present {
+      border-width: 2px;
+    }
+  }
+  
+  .game-header h1 {
+    font-size: 2em;
+  }
+  
+  .game-stats {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .hint-container {
+    padding: 12px 15px;
+    
+    .hint-text {
+      font-size: 1.1em;
+    }
+  }
+  
+  .color-legend {
+    margin: 15px 0;
+    padding: 15px;
+    
+    h3 {
+      font-size: 1.2em;
+    }
+    
+    .legend-item {
+      gap: 12px;
+      
+      .legend-cell {
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
+        
+        &.correct-motus,
+        &.present-motus {
+          border-width: 2px;
+        }
+      }
+      
+      .legend-text {
+        font-size: 0.9em;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .grid-cell {
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    
+    &.correct,
+    &.present {
+      border-width: 2px;
+    }
+  }
+  
+  .grid-row {
+    gap: 5px;
+  }
+  
+  .game-grid {
+    gap: 5px;
+  }
+  
+  .hint-container {
+    padding: 10px 12px;
+    
+    .hint-text {
+      font-size: 1em;
+      
+      strong {
+        font-size: 1.1em;
+      }
+    }
+  }
+  
+  .color-legend {
+    .legend-item {
+      gap: 10px;
+      
+      .legend-cell {
+        width: 30px;
+        height: 30px;
+        font-size: 14px;
+        
+        &.correct-motus,
+        &.present-motus {
+          border-width: 2px;
+        }
+      }
+      
+      .legend-text {
+        font-size: 0.85em;
+      }
+    }
+  }
+}

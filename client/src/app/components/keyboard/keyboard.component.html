@@ -1,0 +1,41 @@
+<div class="keyboard" [class.disabled]="disabled">
+  <!-- Première rangée -->
+  <div class="keyboard-row">
+    <button 
+      *ngFor="let key of row1" 
+      class="key"
+      [ngClass]="keyStates[key]"
+      (click)="onKeyClick(key)"
+      [disabled]="disabled"
+    >
+      {{key}}
+    </button>
+  </div>
+
+  <!-- Deuxième rangée -->
+  <div class="keyboard-row">
+    <button 
+      *ngFor="let key of row2" 
+      class="key"
+      [ngClass]="keyStates[key]"
+      (click)="onKeyClick(key)"
+      [disabled]="disabled"
+    >
+      {{key}}
+    </button>
+  </div>
+
+  <!-- Troisième rangée -->
+  <div class="keyboard-row">
+    <button 
+      *ngFor="let key of row3" 
+      class="key"
+      [ngClass]="keyStates[key]"
+      [class.special-key]="key === 'ENTER' || key === 'DEL'"
+      (click)="onKeyClick(key)"
+      [disabled]="disabled"
+    >
+      {{key}}
+    </button>
+  </div>
+</div>

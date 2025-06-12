@@ -1,62 +1,156 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import connection from '../config/db.js';
+import { validationResult } from 'express-validator';
+import { connection } from '../config/database.js';
 
-// Fonction d'inscription
-const register = async (req, res) => {
+// Générer un token JWT
+const generateToken = (userId) => {
+    return jwt.sign(
+        { userId }, 
+        process.env.JWT_SECRET, 
+        { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+};
+
+// Inscription
+export const register = async (req, res) => {
     try {
-        const { pseudo, password, numero_secu } = req.body;
-        
-        const [existingUser] = await connection.promise().query(
-            'SELECT * FROM users WHERE pseudo = ?',
-            [pseudo]
-        );
-
-        if (existingUser.length > 0) {
-            return res.status(400).json({ message: "Ce pseudo existe déjà" });
+        // Validation des erreurs
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ 
+                message: 'Données invalides', 
+                errors: errors.array() 
+            });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const { pseudo, email, password } = req.body;
 
-        await connection.promise().query(
-            'INSERT INTO users (pseudo, password, numero_secu) VALUES (?, ?, ?)',
-            [pseudo, hashedPassword, numero_secu]
+        // Vérifier si l'utilisateur existe déjà
+        const [existingUsers] = await connection.query(
+            'SELECT id FROM users WHERE email = ? OR pseudo = ?',
+            [email, pseudo]
         );
 
-        res.status(201).json({ message: "Utilisateur créé avec succès" });
+        if (existingUsers.length > 0) {
+            return res.status(409).json({ 
+                message: 'Utilisateur déjà existant avec cet email ou pseudo' 
+            });
+        }
+
+        // Hasher le mot de passe
+        const saltRounds = 12;
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+
+        // Créer l'utilisateur
+        const [result] = await connection.query(
+            'INSERT INTO users (pseudo, email, password) VALUES (?, ?, ?)',
+            [pseudo, email, passwordHash]
+        );
+
+        // Générer le token
+        const token = generateToken(result.insertId);
+
+        res.status(201).json({
+            message: 'Utilisateur créé avec succès',
+            token,
+            user: {
+                id: result.insertId,
+                pseudo,
+                email
+            }
+        });
+
     } catch (error) {
-        res.status(500).json({ message: "Erreur serveur", error: error.message });
+        console.error('Erreur inscription:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de l\'inscription' });
     }
 };
 
-const login = async (req, res) => {
+// Connexion
+export const login = async (req, res) => {
     try {
-        const { pseudo, password } = req.body;
-
-        const [users] = await connection.promise().query(
-            'SELECT * FROM users WHERE pseudo = ?',
-            [pseudo]
-        );
-
-        if (users.length === 0) {
-            return res.status(401).json({ message: "Identifiants invalides" });
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ 
+                message: 'Données invalides', 
+                errors: errors.array() 
+            });
         }
 
-        const validPassword = await bcrypt.compare(password, users[0].password);
-        if (!validPassword) {
-            return res.status(401).json({ message: "Identifiants invalides" });
-        }
+        const { email, password } = req.body;
 
-        const token = jwt.sign(
-            { userId: users[0].id, pseudo: users[0].pseudo },
-            process.env.JWT_SECRET,
-            { expiresIn: '24h' }
+        // Trouver l'utilisateur
+        const [rows] = await connection.query(
+            'SELECT id, pseudo, email, password FROM users WHERE email = ?',
+            [email]
         );
 
-        res.status(200).json({ token });
+        if (!rows.length) {
+            return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
+        }
+
+        const user = rows[0];
+
+        // Vérifier le mot de passe
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        if (!isValidPassword) {
+            return res.status(401).json({ message: 'Email ou mot de passe incorrect' });
+        }
+
+        // Générer le token
+        const token = generateToken(user.id);
+
+        res.json({
+            message: 'Connexion réussie',
+            token,
+            user: {
+                id: user.id,
+                pseudo: user.pseudo,
+                email: user.email
+            }
+        });
+
     } catch (error) {
-        res.status(500).json({ message: "Erreur serveur", error: error.message });
+        console.error('Erreur connexion:', error);
+        res.status(500).json({ message: 'Erreur serveur lors de la connexion' });
     }
 };
 
-export { register, login };
+// Profil utilisateur
+export const getProfile = async (req, res) => {
+    try {
+        // req.user est défini par le middleware authenticateToken
+        const userId = req.user.id;
+
+        // Récupérer les stats de l'utilisateur
+        const [stats] = await connection.query(`
+            SELECT 
+                COUNT(*) as parties_jouees,
+                SUM(CASE WHEN status = 'gagnee' THEN 1 ELSE 0 END) as parties_gagnees,
+                AVG(CASE WHEN status = 'gagnee' THEN score ELSE NULL END) as score_moyen,
+                MAX(score) as meilleur_score
+            FROM scores 
+            WHERE user_id = ?
+        `, [userId]);
+
+        res.json({
+            user: req.user,
+            stats: stats[0] || {
+                parties_jouees: 0,
+                parties_gagnees: 0,
+                score_moyen: 0,
+                meilleur_score: 0
+            }
+        });
+
+    } catch (error) {
+        console.error('Erreur profil:', error);
+        res.status(500).json({ message: 'Erreur serveur' });
+    }
+};
+
+// Logout 
+export const logout = (req, res) => {
+    res.json({ message: 'Déconnexion réussie' });
+};

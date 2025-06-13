@@ -1,3 +1,99 @@
+// ✅ CSS pour le modal de connexion
+.login-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.login-modal {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  max-width: 400px;
+  width: 90%;
+
+  h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+  }
+}
+
+.form-group {
+  margin-bottom: 15px;
+
+  label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+
+  input {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    font-size: 16px;
+    box-sizing: border-box;
+
+    &:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+  }
+}
+
+.login-btn, .test-btn {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.login-btn {
+  background: #667eea;
+  color: white;
+
+  &:hover:not(:disabled) {
+    background: #5a6fd8;
+  }
+
+  &:disabled {
+    background: #ccc;
+  }
+}
+
+.test-btn {
+  background: #28a745;
+  color: white;
+
+  &:hover {
+    background: #218838;
+  }
+}
+
+.error-message {
+  background: #ff4757;
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+// ✅ CSS existant pour le jeu
 .game-container {
   display: flex;
   flex-direction: column;
@@ -526,6 +622,13 @@
       }
     }
   }
+
+  // ✅ Responsive pour le modal de connexion
+  .login-modal {
+    padding: 20px;
+    margin: 20px;
+    max-width: 350px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -579,5 +682,136 @@
         font-size: 0.85em;
       }
     }
+  }
+
+  // ✅ Modal responsive pour très petits écrans
+  .login-modal {
+    padding: 15px;
+    margin: 10px;
+    max-width: 320px;
+    
+    h2 {
+      font-size: 1.5em;
+    }
+    
+    .form-group {
+      margin-bottom: 12px;
+    }
+    
+    .login-btn, .test-btn {
+      padding: 10px;
+      font-size: 14px;
+    }
+  }
+}
+
+// ✅ Page d'accueil
+.welcome-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  text-align: center;
+}
+
+.welcome-content {
+  background: white;
+  padding: 40px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  
+  h1 {
+    font-size: 3em;
+    margin-bottom: 20px;
+    color: #2c3e50;
+  }
+  
+  p {
+    font-size: 1.2em;
+    color: #555;
+    margin-bottom: 30px;
+  }
+}
+
+// ✅ Interface de jeu avec stats
+.game-interface {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 15px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.session-stats {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  background: white;
+  padding: 15px 20px;
+  border-radius: 10px;
+  text-align: center;
+  min-width: 100px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  
+  .stat-value {
+    display: block;
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #2c3e50;
+    margin-bottom: 5px;
+  }
+  
+  .stat-label {
+    font-size: 0.9em;
+    color: #7f8c8d;
+    text-transform: uppercase;
+  }
+}
+
+.game-controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.change-alias-btn, .end-game-btn, .logout-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.change-alias-btn {
+  background: #3498db;
+  color: white;
+  
+  &:hover {
+    background: #2980b9;
+  }
+}
+
+.end-game-btn {
+  background: #e74c3c;
+  color: white;
+  
+  &:hover {
+    background: #c0392b;
+  }
+}
+
+.logout-btn {
+  background: #95a5a6;
+  color: white;
+  
+  &:hover {
+    background: #7f8c8d;
   }
 }

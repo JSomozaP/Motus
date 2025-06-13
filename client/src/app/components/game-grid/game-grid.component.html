@@ -1,9 +1,200 @@
-<div class="game-container">
+<!-- Modal de connexion -->
+<div *ngIf="showLoginModal" class="login-modal-overlay">
+  <div class="login-modal">
+    <h2>🎯 Connexion Motus</h2>
+    
+    <form (ngSubmit)="onLogin()" #loginForm="ngForm">
+      <div class="form-group">
+        <label>Alias de jeu :</label>
+        <input 
+          type="text" 
+          [(ngModel)]="loginAlias" 
+          name="alias"
+          required
+          maxlength="20"
+          placeholder="Votre pseudo de jeu"
+        >
+      </div>
+
+      <div class="form-group">
+        <label>Email :</label>
+        <input 
+          type="email" 
+          [(ngModel)]="loginEmail" 
+          name="email"
+          required
+          placeholder="votre@email.com"
+        >
+      </div>
+
+      <div class="form-group">
+        <label>Mot de passe :</label>
+        <input 
+          type="password" 
+          [(ngModel)]="loginPassword" 
+          name="password"
+          required
+          placeholder="Votre mot de passe"
+        >
+      </div>
+
+      <div *ngIf="loginError" class="error-message">
+        {{ loginError }}
+      </div>
+
+      <button 
+        type="submit" 
+        [disabled]="loginForm.invalid || loginLoading"
+        class="login-btn"
+      >
+        <span *ngIf="loginLoading">⏳ Connexion...</span>
+        <span *ngIf="!loginLoading">🚀 Se connecter</span>
+      </button>
+
+      <!-- Bouton de test -->
+      <button 
+        type="button" 
+        (click)="useTestAccount()" 
+        class="test-btn"
+      >
+        🧪 Utiliser compte de test
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ✅ Informations du joueur -->
+<div class="player-info" *ngIf="isAuthenticated && !showLoginModal">
+  <div class="player-card">
+    <span class="player-icon">👤</span>
+    <span class="player-name">{{ getCurrentPlayerAlias() }}</span>
+    <button class="change-alias-btn-mini" (click)="changeAlias()" title="Changer de pseudo">✏️</button>
+  </div>
+</div>
+
+<!-- ✅ Interface de jeu avec stats et contrôles -->
+<div class="game-interface" *ngIf="isAuthenticated && !showLoginModal">
+  
+  <!-- Stats de session en temps réel -->
+  <div class="session-stats">
+    <div class="stat-card">
+      <span class="stat-value">{{ sessionStats.totalScore }}</span>
+      <span class="stat-label">Score Total</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ sessionStats.wordsFound }}</span>
+      <span class="stat-label">Mots Trouvés</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ sessionStats.averageScore }}</span>
+      <span class="stat-label">Moyenne</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ sessionStats.currentStreak }}</span>
+      <span class="stat-label">Série Actuelle</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-value">{{ sessionStats.perfectWords }}</span>
+      <span class="stat-label">Mots Parfaits</span>
+    </div>
+  </div>
+
+  <!-- Boutons de contrôle -->
+  <div class="game-controls">
+    <button class="change-alias-btn" (click)="changeAlias()">
+      ✏️ Changer pseudo
+    </button>
+    <button 
+      class="end-game-btn" 
+      (click)="endGameSession()" 
+      *ngIf="sessionStats.wordsFound > 0"
+    >
+      🏁 Terminer la session
+    </button>
+    <button class="logout-btn" (click)="logout()">
+      🚪 Déconnexion
+    </button>
+  </div>
+
+  <!-- ✅ Panneau des scores intégré -->
+  <div class="scores-panel" *ngIf="!gameOver">
+    <h3>🏆 Hall of Fame</h3>
+    <div class="scores-tabs">
+      <button 
+        class="tab-btn" 
+        [class.active]="activeScoreTab === 'session'"
+        (click)="activeScoreTab = 'session'"
+      >
+        Session Actuelle
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeScoreTab === 'all'"
+        (click)="activeScoreTab = 'all'; loadTopScores()"
+      >
+        Meilleurs Scores
+      </button>
+    </div>
+    
+    <div class="scores-content">
+      <!-- Historique de la session actuelle -->
+      <div *ngIf="activeScoreTab === 'session'" class="session-history">
+        <div *ngIf="wordsHistory.length === 0" class="no-words">
+          <p>🎯 Aucun mot trouvé pour le moment</p>
+        </div>
+        <div *ngFor="let word of wordsHistory; let i = index" class="word-history-item">
+          <span class="word-number">#{{ i + 1 }}</span>
+          <span class="word-attempts">{{ word.attempts }} essai{{ word.attempts > 1 ? 's' : '' }}</span>
+          <span class="word-score">{{ word.wordScore }}pts</span>
+          <span *ngIf="word.bonusPoints > 0" class="word-bonus">+{{ word.bonusPoints }} bonus</span>
+          <span *ngIf="word.isPerfect" class="perfect-badge">⭐</span>
+        </div>
+      </div>
+      
+      <!-- Top scores globaux -->
+      <div *ngIf="activeScoreTab === 'all'" class="global-scores">
+        <div *ngIf="topScores.length === 0" class="no-scores">
+          <p>📊 Chargement des scores...</p>
+        </div>
+        <div *ngFor="let score of topScores; let i = index" class="score-item">
+          <span class="rank">{{ i + 1 }}.</span>
+          <span class="player-name">{{ score.playerAlias || 'Joueur Anonyme' }}</span>
+          <span class="score-value">{{ score.totalScore }}pts</span>
+          <span class="words-count">{{ score.wordsFound }} mots</span>
+          <span *ngIf="score.bestStreak > 1" class="streak">🔥{{ score.bestStreak }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Page d'accueil pour utilisateurs non connectés -->
+<div *ngIf="!isAuthenticated && !showLoginModal" class="welcome-screen">
+  <div class="welcome-content">
+    <h1>🎯 MOTUS</h1>
+    <p>Trouvez le mot mystère en 6 essais maximum !</p>
+    <div class="welcome-features">
+      <div class="feature">⭐ Système de score progressif</div>
+      <div class="feature">🏆 Hall of Fame personnalisé</div>
+      <div class="feature">🔥 Bonus de rapidité et combo</div>
+      <div class="feature">📊 Statistiques détaillées</div>
+    </div>
+    <button class="login-btn" (click)="showLogin()">
+      🔐 Se connecter pour jouer
+    </button>
+  </div>
+</div>
+
+<!-- Grille de jeu (affichée seulement si authentifié) -->
+<div *ngIf="isAuthenticated && !showLoginModal" class="game-container">
   <!-- En-tête du jeu -->
   <div class="game-header">
     <h1>Motus</h1>
     <div class="game-info">
       <p>Trouvez le mot de {{ wordLength }} lettres</p>
+      <div *ngIf="sessionStats.currentStreak > 0" class="streak-indicator">
+        🔥 Série de {{ sessionStats.currentStreak }} mot{{ sessionStats.currentStreak > 1 ? 's' : '' }}
+      </div>
     </div>
   </div>
 
@@ -94,8 +285,37 @@
         <div class="word-label">Le mot à trouver était :</div>
         <div class="word-value">{{ targetWord }}</div>
       </div>
+      
+      <!-- ✅ Résumé des performances -->
+      <div class="performance-summary" *ngIf="sessionStats.wordsFound > 0">
+        <h3>📊 Résumé de votre session</h3>
+        <div class="summary-stats">
+          <div class="summary-item">
+            <span class="summary-label">Score total :</span>
+            <span class="summary-value">{{ sessionStats.totalScore }} points</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Mots trouvés :</span>
+            <span class="summary-value">{{ sessionStats.wordsFound }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Meilleure série :</span>
+            <span class="summary-value">{{ sessionStats.bestStreak }}</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Mots parfaits :</span>
+            <span class="summary-value">{{ sessionStats.perfectWords }} ⭐</span>
+          </div>
+        </div>
+      </div>
     </div>
-    <button class="restart-button" (click)="restartGame()">Nouvelle partie</button>
+    
+    <div class="game-over-actions">
+      <button class="restart-button" (click)="restartGame()">Mot suivant</button>
+      <button class="end-session-button" (click)="endGameSession()" *ngIf="sessionStats.wordsFound > 0">
+        🏁 Terminer la session
+      </button>
+    </div>
   </div>
 
   <!-- Statistiques (optionnel) -->
@@ -108,5 +328,12 @@
       <span class="stat-label">Ligne actuelle :</span>
       <span class="stat-value">{{ currentRow + 1 }}/6</span>
     </div>
+    <div class="stat-item" *ngIf="sessionStats.bestStreak > 0">
+      <span class="stat-label">Meilleure série :</span>
+      <span class="stat-value">🔥 {{ sessionStats.bestStreak }}</span>
+    </div>
   </div>
 </div>
+
+<!-- ✅ Système de toasts (placé à la fin) -->
+<app-toast></app-toast>

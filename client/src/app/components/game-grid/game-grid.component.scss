@@ -815,3 +815,121 @@
     background: #7f8c8d;
   }
 }
+
+// ✅ Styles pour le sélecteur de difficulté
+.difficulty-section {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 20px;
+  border-radius: 12px;
+  margin: 20px 0;
+  backdrop-filter: blur(10px);
+}
+
+.difficulty-current {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  font-weight: 600;
+  color: white;
+}
+
+.difficulty-selector {
+  animation: slideDown 0.3s ease-out;
+}
+
+.difficulty-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.difficulty-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 15px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  &.active {
+    border-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.3);
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
+  }
+
+  .difficulty-icon {
+    font-size: 2em;
+    margin-bottom: 8px;
+  }
+
+  .difficulty-name {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 5px;
+  }
+
+  .difficulty-desc {
+    font-size: 0.9em;
+    opacity: 0.8;
+  }
+}
+
+.difficulty-btn.facile {
+  &:hover, &.active {
+    border-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.2);
+  }
+}
+
+.difficulty-btn.moyen {
+  &:hover, &.active {
+    border-color: #FF9800;
+    background: rgba(255, 152, 0, 0.2);
+  }
+}
+
+.difficulty-btn.difficile {
+  &:hover, &.active {
+    border-color: #F44336;
+    background: rgba(244, 67, 54, 0.2);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .difficulty-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .difficulty-btn {
+    padding: 15px 10px;
+    
+    .difficulty-icon {
+      font-size: 1.5em;
+    }
+  }
+}

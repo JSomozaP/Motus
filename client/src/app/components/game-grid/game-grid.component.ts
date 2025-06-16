@@ -2,10 +2,12 @@ import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { KeyboardComponent } from '../keyboard/keyboard.component';
-import { ToastComponent } from '../toast/toast.component'; // ✅ Import ajouté
+import { ToastComponent } from '../toast/toast.component';
 import { GameService } from '../../services/game.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
+import { ModalComponent } from '../modal/modal.component';
+import { ModalService } from '../../services/modal.service';
 
 interface Cell {
   letter: string;
@@ -18,7 +20,7 @@ interface SessionStats {
   averageScore: number;
   currentStreak: number;
   bestStreak: number;
-  perfectWords: number; // Mots trouvés au 1er essai
+  perfectWords: number;
 }
 
 interface WordResult {
@@ -28,7 +30,6 @@ interface WordResult {
   bonusPoints: number;
 }
 
-// ✅ Interface pour les sessions sauvegardées
 interface SavedSession {
   id: number;
   date: string;
@@ -43,7 +44,7 @@ interface SavedSession {
   templateUrl: './game-grid.component.html',
   styleUrls: ['./game-grid.component.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule, KeyboardComponent, ToastComponent]
+  imports: [CommonModule, FormsModule, KeyboardComponent, ToastComponent, ModalComponent]
 })
 export class GameGridComponent implements OnInit {
   // Propriétés de la grille de jeu
@@ -57,6 +58,7 @@ export class GameGridComponent implements OnInit {
   isLoading = true;
   gameOver = false;
   errorMessage = '';
+  wordFound = false;
   
   // Propriétés API
   gameId?: number;
@@ -66,7 +68,7 @@ export class GameGridComponent implements OnInit {
   // États du clavier
   keyStates: { [key: string]: string } = {};
 
-  // ✅ Authentification et modal
+  // Authentification et modal
   isAuthenticated = false;
   showLoginModal = false;
   loginEmail = '';
@@ -75,7 +77,7 @@ export class GameGridComponent implements OnInit {
   loginError = '';
   loginLoading = false;
 
-  // ✅ Système de score avancé
+  // Système de score avancé
   sessionStats: SessionStats = {
     totalScore: 0,
     wordsFound: 0,
@@ -85,13 +87,13 @@ export class GameGridComponent implements OnInit {
     perfectWords: 0
   };
 
-  // ✅ Historique et bonus
-  private perfectWordStreak = 0; // Série de mots parfaits consécutifs
+  // Historique et bonus
+  private perfectWordStreak = 0;
   private sessionStartTime = Date.now();
   private wordStartTime = Date.now();
-  wordsHistory: WordResult[] = []; 
+  wordsHistory: WordResult[] = [];
 
-  // ✅ Nouvelles propriétés pour les scores
+  // Scores
   activeScoreTab = 'session';
   topScores: Array<{
     playerAlias: string;
@@ -101,22 +103,100 @@ export class GameGridComponent implements OnInit {
     date: string;
   }> = [];
 
+  // ✅ Nouvelles propriétés pour la difficulté
+  currentDifficulty: 'facile' | 'moyen' | 'difficile' = 'facile';
+  showDifficultySelector = false;
+
   constructor(
     private gameService: GameService,
     private authService: AuthService,
     private toastService: ToastService,
+    public modalService: ModalService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
   ngOnInit() {
     if (isPlatformBrowser(this.platformId)) {
-      // ✅ Activer l'API trouve-mot.fr pour les mots français
       this.gameService.useLocalWordsOnly();
       this.checkAuthentication();
+      
+      // ✅ Charger la difficulté sauvegardée
+      const savedDifficulty = localStorage.getItem('gameDifficulty') as 'facile' | 'moyen' | 'difficile';
+      if (savedDifficulty) {
+        this.currentDifficulty = savedDifficulty;
+        if (savedDifficulty === 'difficile') {
+          this.gameService.enableHardMode();
+        }
+      }
     }
   }
 
-  // ✅ Nouvelles méthodes pour l'interface
+  // ✅ Méthode pour changer la difficulté
+  changeDifficulty(difficulty: 'facile' | 'moyen' | 'difficile') {
+    this.currentDifficulty = difficulty;
+    
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem('gameDifficulty', difficulty);
+    }
+    
+    // Activer/désactiver le hard mode selon la difficulté
+    if (difficulty === 'difficile') {
+      this.gameService.enableHardMode();
+      this.toastService.success('🔥 Mode DIFFICILE activé ! Préparez-vous à des mots complexes !', 4000);
+    } else {
+      this.gameService.disableHardMode();
+      if (difficulty === 'moyen') {
+        this.toastService.info('📚 Mode MOYEN sélectionné - Mots variés et intéressants', 3000);
+      } else {
+        this.toastService.info('🟢 Mode FACILE sélectionné - Mots courants et simples', 3000);
+      }
+    }
+    
+    this.showDifficultySelector = false;
+    
+    // Redémarrer le jeu avec la nouvelle difficulté
+    if (!this.gameOver) {
+      this.restartGame();
+    }
+  }
+
+  // ✅ Nouvelle méthode pour tester les mots par difficulté
+  previewDifficulty(difficulty: 'facile' | 'moyen' | 'difficile') {
+    this.gameService.getWordsByDifficulty(difficulty, 3).subscribe({
+      next: (samples) => {
+        const difficultyLabels = {
+          'facile': '🟢 FACILE',
+          'moyen': '📚 MOYEN', 
+          'difficile': '🔥 DIFFICILE'
+        };
+        
+        this.toastService.info(
+          `${difficultyLabels[difficulty]}\nExemples: ${samples.join(', ')}`,
+          5000
+        );
+      },
+      error: (err) => {
+        this.toastService.error('Erreur lors du chargement des exemples', 3000);
+      }
+    });
+  }
+
+  // ✅ Obtenir le label de difficulté actuelle
+  getDifficultyLabel(): string {
+    const labels = {
+      'facile': '🟢 Facile',
+      'moyen': '📚 Moyen',
+      'difficile': '🔥 Difficile'
+    };
+    return labels[this.currentDifficulty];
+  }
+
+  // ✅ Statistiques incluant le hard mode
+  getGameStats() {
+    const stats = this.gameService.getUsedWordsStats();
+    return stats;
+  }
+
   getCurrentPlayerAlias(): string {
     if (isPlatformBrowser(this.platformId)) {
       return localStorage.getItem('playerAlias') || 'Joueur Anonyme';
@@ -125,13 +205,12 @@ export class GameGridComponent implements OnInit {
   }
 
   loadTopScores() {
-    // Charger depuis localStorage
     if (isPlatformBrowser(this.platformId)) {
       const history: SavedSession[] = JSON.parse(localStorage.getItem('gameHistory') || '[]');
       this.topScores = history
-        .sort((a: SavedSession, b: SavedSession) => b.stats.totalScore - a.stats.totalScore) // ✅ Types explicites
-        .slice(0, 10) // Top 10
-        .map((session: SavedSession) => ({ // ✅ Type explicite
+        .sort((a: SavedSession, b: SavedSession) => b.stats.totalScore - a.stats.totalScore)
+        .slice(0, 10)
+        .map((session: SavedSession) => ({
           playerAlias: session.playerAlias || 'Joueur Anonyme',
           totalScore: session.stats.totalScore,
           wordsFound: session.stats.wordsFound,
@@ -141,7 +220,6 @@ export class GameGridComponent implements OnInit {
     }
   }
 
-  // ✅ Vérifier l'authentification
   private checkAuthentication() {
     if (!isPlatformBrowser(this.platformId)) return;
     
@@ -149,7 +227,7 @@ export class GameGridComponent implements OnInit {
     if (token) {
       this.isAuthenticated = true;
       this.showLoginModal = false;
-      this.loadSession(); // Charger session sauvegardée
+      this.loadSession();
       this.loadNewWord();
     } else {
       this.isAuthenticated = false;
@@ -158,7 +236,6 @@ export class GameGridComponent implements OnInit {
     }
   }
 
-  // ✅ Charger une session existante
   private loadSession() {
     if (!isPlatformBrowser(this.platformId)) return;
     
@@ -175,12 +252,10 @@ export class GameGridComponent implements OnInit {
     }
   }
 
-  // ✅ Afficher le modal de connexion
   showLogin() {
     this.showLoginModal = true;
   }
 
-  // ✅ Gérer la connexion avec alias
   onLogin() {
     if (!this.loginEmail || !this.loginPassword || !this.loginAlias) {
       this.loginError = 'Veuillez remplir tous les champs';
@@ -197,7 +272,6 @@ export class GameGridComponent implements OnInit {
         this.showLoginModal = false;
         this.loginLoading = false;
         
-        // ✅ Sauvegarder l'alias
         if (isPlatformBrowser(this.platformId)) {
           localStorage.setItem('playerAlias', this.loginAlias);
         }
@@ -205,7 +279,6 @@ export class GameGridComponent implements OnInit {
         this.resetSession();
         this.loadNewWord();
         
-        // ✅ Message de bienvenue avec toast
         this.toastService.success(`Bienvenue ${this.loginAlias} ! 🎯`, 4000);
       },
       error: (error) => {
@@ -217,17 +290,14 @@ export class GameGridComponent implements OnInit {
     });
   }
 
-  // ✅ Utiliser le compte de test
   useTestAccount() {
     this.loginEmail = 'jeremy@test.com';
     this.loginPassword = 'Test123';
     this.loginAlias = 'Jeremy Test';
   }
 
-  // ✅ Déconnexion
   logout() {
     if (this.sessionStats.wordsFound > 0) {
-      // Sauvegarder automatiquement avant de se déconnecter
       this.endGameSession(false);
     }
     
@@ -238,7 +308,6 @@ export class GameGridComponent implements OnInit {
     this.toastService.info('Déconnecté avec succès', 3000);
   }
 
-  // ✅ Système de calcul de score
   private calculateWordScore(attempts: number): WordResult {
     const baseScore = 100;
     const penalty = (attempts - 1) * 15;
@@ -247,16 +316,13 @@ export class GameGridComponent implements OnInit {
     const isPerfect = attempts === 1;
     let bonusPoints = 0;
 
-    // ✅ Bonus pour mot parfait
     if (isPerfect) {
       this.perfectWordStreak++;
       
-      // ✅ Combo bonus : +10 points si 3 mots parfaits consécutifs
       if (this.perfectWordStreak >= 3) {
         bonusPoints += 10;
       }
       
-      // ✅ Bonus de rapidité (si trouvé en moins de 30 secondes)
       const timeBonus = this.calculateTimeBonus();
       bonusPoints += timeBonus;
       
@@ -274,12 +340,11 @@ export class GameGridComponent implements OnInit {
 
   private calculateTimeBonus(): number {
     const elapsedTime = (Date.now() - this.wordStartTime) / 1000;
-    if (elapsedTime < 15) return 20; // Super rapide : 20 bonus
-    if (elapsedTime < 30) return 10; // Rapide : 10 bonus
-    return 0; // Pas de bonus
+    if (elapsedTime < 15) return 20;
+    if (elapsedTime < 30) return 10;
+    return 0;
   }
 
-  // ✅ Mettre à jour les statistiques
   private updateSessionStats(wordResult: WordResult) {
     this.sessionStats.wordsFound++;
     this.sessionStats.totalScore += wordResult.wordScore;
@@ -295,14 +360,10 @@ export class GameGridComponent implements OnInit {
       this.sessionStats.currentStreak = 0;
     }
 
-    // Ajouter à l'historique
     this.wordsHistory.push(wordResult);
-
-    // ✅ Auto-save à chaque mot
     this.autoSaveProgress();
   }
 
-  // ✅ Sauvegarde automatique
   private autoSaveProgress() {
     if (!isPlatformBrowser(this.platformId)) return;
     
@@ -316,26 +377,6 @@ export class GameGridComponent implements OnInit {
     localStorage.setItem('currentSession', JSON.stringify(sessionData));
   }
 
-  // ✅ Fin de session manuelle
-  endGameSession(showConfirm: boolean = true) {
-    if (showConfirm && !confirm(`Terminer la session avec ${this.sessionStats.wordsFound} mots trouvés et ${this.sessionStats.totalScore} points ?`)) {
-      return;
-    }
-
-    // ✅ Sauvegarder le score final
-    this.saveSessionToHistory();
-    
-    // ✅ Message de fin avec toast (à remplacer)
-    console.log(`🎉 Session terminée !\n\nScore final: ${this.sessionStats.totalScore} points\nMots trouvés: ${this.sessionStats.wordsFound}\nMeilleure série: ${this.sessionStats.bestStreak}`);
-    
-    // ✅ Réinitialiser pour une nouvelle session
-    this.resetSession();
-    
-    // Recharger un nouveau mot
-    this.loadNewWord();
-  }
-
-  // ✅ Sauvegarder dans l'historique
   private saveSessionToHistory() {
     if (!isPlatformBrowser(this.platformId) || this.sessionStats.wordsFound === 0) return;
     
@@ -343,7 +384,7 @@ export class GameGridComponent implements OnInit {
     const existingHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
     
     const sessionRecord = {
-      id: Date.now(), // ID unique
+      id: Date.now(),
       date: new Date().toISOString(),
       playerAlias: localStorage.getItem('playerAlias') || 'Joueur Anonyme',
       stats: { ...this.sessionStats },
@@ -352,25 +393,20 @@ export class GameGridComponent implements OnInit {
     };
     
     existingHistory.push(sessionRecord);
-    
-    // Trier par score décroissant
     existingHistory.sort((a: SavedSession, b: SavedSession) => b.stats.totalScore - a.stats.totalScore);
     
-    // Garder les 50 meilleurs
     if (existingHistory.length > 50) {
       existingHistory.splice(50);
     }
     
     localStorage.setItem(historyKey, JSON.stringify(existingHistory));
     
-     // ✅ Message de sauvegarde avec toast
     this.toastService.success(
       `Session sauvegardée ! ${this.sessionStats.totalScore} points avec ${this.sessionStats.wordsFound} mots trouvés.`,
       5000
     );
   }
 
-  // ✅ Réinitialiser la session
   private resetSession() {
     this.sessionStats = {
       totalScore: 0,
@@ -403,12 +439,14 @@ export class GameGridComponent implements OnInit {
     }
   }
 
+  // ✅ Modifier loadNewWord pour utiliser la difficulté
   private loadNewWord() {
     this.isLoading = true;
     this.errorMessage = '';
-    this.wordStartTime = Date.now(); // ✅ Démarrer le chrono pour ce mot
+    this.wordStartTime = Date.now();
     
-    this.gameService.getRandomWord('facile').subscribe({
+    // ✅ Utiliser la difficulté sélectionnée
+    this.gameService.getRandomWord(this.currentDifficulty).subscribe({
       next: (response) => {
         console.log('Response from server:', response);
         if (response && response.gameId) {
@@ -420,6 +458,11 @@ export class GameGridComponent implements OnInit {
           
           this.initializeGrid();
           this.isLoading = false;
+          
+          // ✅ Message informatif selon la difficulté
+          if (this.currentDifficulty === 'difficile') {
+            this.toastService.info(`🔥 Nouveau mot DIFFICILE de ${this.wordLength} lettres !`, 3000);
+          }
         } else {
           console.error('Invalid response format:', response);
           this.errorMessage = 'Format de réponse invalide';
@@ -435,6 +478,8 @@ export class GameGridComponent implements OnInit {
           this.isAuthenticated = false;
           this.showLoginModal = true;
         }
+        
+        this.toastService.error(`Erreur: ${error.message || 'Erreur inconnue'}`, 4000);
       }
     });
   }
@@ -479,14 +524,15 @@ export class GameGridComponent implements OnInit {
         ));
 
         if (response.won) {
-          // ✅ Mot trouvé : calculer et appliquer le score
+
+          this.wordFound = true;
+
           const wordResult = this.calculateWordScore(attemptNumber);
           this.updateSessionStats(wordResult);
           
           this.gameOver = true;
           this.targetWord = response.targetWord || guess;
           
-          // ✅ Message avec détails du score via toast
           setTimeout(() => {
             let message = `🎉 Mot trouvé en ${attemptNumber} essai${attemptNumber > 1 ? 's' : ''} !`;
             message += `\nScore: ${wordResult.wordScore} points`;
@@ -499,12 +545,37 @@ export class GameGridComponent implements OnInit {
           }, 1000);
           
         } else if (response.gameOver || this.currentRow >= 5) {
+
+          this.wordFound = false;
+
           this.gameOver = true;
           this.targetWord = response.targetWord || 'MAISON';
           
-          // ✅ Mot raté : casser la série
           this.sessionStats.currentStreak = 0;
           this.perfectWordStreak = 0;
+
+          // ✅ Messages d'échec variés et dynamiques
+          setTimeout(() => {
+            const failureMessages = [
+              `😞 Pas cette fois ! Le mot était : ${this.targetWord}`,
+              `🤔 Presque ! La réponse était : ${this.targetWord}`,
+              `💪 Continuez ! Le mot mystère était : ${this.targetWord}`,
+              `🎯 Raté ! Mais le mot était : ${this.targetWord}`
+            ];
+            
+            const randomMessage = failureMessages[Math.floor(Math.random() * failureMessages.length)];
+            
+            let failureMessage = randomMessage;
+            failureMessage += `\n📊 Score actuel : ${this.sessionStats.totalScore} points`;
+            failureMessage += `\n🏆 Mots trouvés : ${this.sessionStats.wordsFound}`;
+            
+            // ✅ Message spécial selon la difficulté
+            if (this.currentDifficulty === 'difficile') {
+              failureMessage += `\n🔥 Mot niveau DIFFICILE - Bien tenté !`;
+            }
+            
+            this.toastService.error(failureMessage, 6000);
+          }, 1000);
           
         } else {
           this.currentRow++;
@@ -536,21 +607,52 @@ export class GameGridComponent implements OnInit {
 
   restartGame() {
     this.gameOver = false;
+    this.wordFound = false;
     this.currentRow = 0;
     this.currentCol = 0;
     this.keyStates = {};
     this.loadNewWord();
   }
 
-  // ✅ Changer l'alias en cours de partie
-  changeAlias() {
-    const currentAlias = this.getCurrentPlayerAlias();
-    const newAlias = prompt('Nouveau pseudo de jeu:', currentAlias);
-    if (newAlias && newAlias.trim() && newAlias.trim() !== currentAlias) {
+  // ✅ Méthode changer alias avec modal
+  async changeAlias() {
+    const newAlias = await this.modalService.showInput(
+      'Changer de pseudo',
+      'Entrez votre nouveau pseudo de jeu :',
+      'Nouveau pseudo...',
+      this.getCurrentPlayerAlias(),
+      'Modifier'
+    );
+    
+    if (newAlias && newAlias.trim() !== this.getCurrentPlayerAlias()) {
       if (isPlatformBrowser(this.platformId)) {
         localStorage.setItem('playerAlias', newAlias.trim());
       }
-      console.log(`Pseudo mis à jour: ${newAlias.trim()} ! 🎯`); // À remplacer par toast
+      this.toastService.success(`🎯 Pseudo mis à jour: ${newAlias.trim()} !`, 3000);
     }
+  }
+
+  // ✅ Méthode terminer session avec modal
+  async endGameSession(showConfirm: boolean = true) {
+    if (showConfirm) {
+      const confirmed = await this.modalService.showConfirm(
+        'Terminer la session',
+        `Êtes-vous sûr de vouloir terminer la session avec ${this.sessionStats.wordsFound} mots trouvés et ${this.sessionStats.totalScore} points ?`,
+        'Terminer'
+      );
+      
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    this.saveSessionToHistory();
+    
+    console.log(`🎉 Session terminée !\n\nScore final: ${this.sessionStats.totalScore} points\nMots trouvés: ${this.sessionStats.wordsFound}\nMeilleure série: ${this.sessionStats.bestStreak}`);
+    
+    this.toastService.success(`🎉 Session terminée ! Score: ${this.sessionStats.totalScore} points`, 4000);
+    
+    this.resetSession();
+    this.loadNewWord();
   }
 }

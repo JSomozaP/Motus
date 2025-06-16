@@ -27,12 +27,45 @@ interface GuessResponse {
   targetWord?: string;
 }
 
-// ✅ Interface simplifiée pour les sources locales uniquement
+// ✅ Interface pour les sources de mots avec support difficulté
 interface WordSource {
   name: string;
   getWord: () => Observable<string>;
   priority: number;
   enabled: boolean;
+  difficulty?: string;
+}
+
+// ✅ Interface pour les statistiques de mots (CORRIGÉE)
+interface WordStats {
+  used: number;
+  max: number;
+  percentage: number;
+  premiumAvailable: number;
+  securityAvailable: number;
+  totalWords: number;
+  hardMode?: {
+    used: number;
+    max: number;
+    percentage: number;
+    available: number;
+    total: number;
+    enabled: boolean;
+  };
+}
+
+// ✅ Interface pour les statistiques complètes
+interface CompleteStats extends WordStats {
+  offlineMode: boolean;
+  developmentMode: boolean;
+  sources: Array<{
+    name: string;
+    enabled: boolean;
+    priority: number;
+    difficulty?: string;
+    description: string;
+  }>;
+  currentTargetWord: string;
 }
 
 @Injectable({
@@ -43,26 +76,41 @@ export class GameService {
   
   // ✅ Gestion des mots utilisés pour éviter les répétitions
   private usedWords = new Set<string>();
-  private maxUsedWords = 500; // Réduit car on a moins de mots maintenant
+  private maxUsedWords = 500;
+  
+  // ✅ Cache pour les mots du mode hard
+  private hardModeWords: string[] = [];
+  private hardModeLoaded = false;
+  private hardModeUsedWords = new Set<string>();
+  private maxHardModeWords = 1000;
   
   // ✅ Mode hybride activé automatiquement si le serveur ne répond pas
   private offlineMode = false;
-  private developmentMode = true; // Mode développement sans auth
-  private currentTargetWord = ''; // Stockage du mot actuel pour le mode offline
+  private developmentMode = true;
+  private currentTargetWord = '';
 
-  // ✅ Sources locales uniquement - plus d'API externe !
+  // ✅ Sources avec le mode hard GitHub
   private wordSources: WordSource[] = [
+    {
+      name: 'github-hard',
+      getWord: () => this.getWordFromGitHubHardMode(),
+      priority: 1,
+      enabled: false,
+      difficulty: 'difficile'
+    },
     {
       name: 'local-premium',
       getWord: () => this.getWordFromPremiumList(),
-      priority: 1, // ✅ Premium en priorité maintenant !
-      enabled: true
+      priority: 2,
+      enabled: true,
+      difficulty: 'moyen'
     },
     {
       name: 'local-security',
       getWord: () => this.getWordFromSecurityList(),
-      priority: 2, // ✅ Sécurité en second
-      enabled: true
+      priority: 3,
+      enabled: true,
+      difficulty: 'facile'
     }
   ];
 
@@ -146,10 +194,170 @@ export class GameService {
     private router: Router,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
-    console.log('🇫🇷 GameService initialisé avec listes françaises locales');
+    console.log('🇫🇷 GameService initialisé avec listes françaises locales + GitHub Hard Mode');
   }
 
-  // ✅ Source de mots premium français (maintenant prioritaire !)
+  // ✅ Charger les mots du mode hard depuis GitHub
+  private loadHardModeWords(): Observable<string[]> {
+    if (this.hardModeLoaded && this.hardModeWords.length > 0) {
+      console.log(`🎯 Mots hard mode déjà chargés: ${this.hardModeWords.length} mots`);
+      return of(this.hardModeWords);
+    }
+
+    console.log('🔄 Chargement des mots hard mode depuis GitHub...');
+    
+    return this.http.get<string[]>('https://raw.githubusercontent.com/words/an-array-of-french-words/master/index.json', {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    }).pipe(
+      map(words => {
+        console.log(`📡 Mots bruts reçus: ${words.length}`);
+        
+        // ✅ Filtrer et nettoyer les mots pour le jeu
+        const filteredWords = words
+          .filter(word => {
+            if (!word || typeof word !== 'string') return false;
+            
+            const cleanWord = word.toUpperCase().trim();
+            
+            // Critères de sélection pour un bon jeu de mots
+            return (
+              cleanWord.length >= 4 && cleanWord.length <= 8 && // Taille appropriée
+              /^[A-ZÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ]+$/.test(cleanWord) && // Lettres françaises uniquement
+              !cleanWord.includes('-') && // Pas de mots composés
+              !cleanWord.includes(' ') && // Pas d'espaces
+              !/^\d/.test(cleanWord) && // Pas de mots commençant par un chiffre
+              cleanWord.length > 2 // Éviter les mots trop courts
+            );
+          })
+          .map(word => {
+            // Nettoyer les accents pour simplifier le jeu
+            return word.toUpperCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '') // Supprimer tous les accents
+              .trim();
+          })
+          .filter((word, index, arr) => arr.indexOf(word) === index) // Supprimer les doublons
+          .sort(); // Trier alphabétiquement
+
+        console.log(`✅ Mots filtrés pour le hard mode: ${filteredWords.length}`);
+        console.log(`📊 Répartition par longueur:`, this.getWordLengthStats(filteredWords));
+        
+        // Sauvegarder en cache
+        this.hardModeWords = filteredWords;
+        this.hardModeLoaded = true;
+        
+        // ✅ Sauvegarder en localStorage pour éviter de recharger
+        if (isPlatformBrowser(this.platformId)) {
+          try {
+            localStorage.setItem('hardModeWords', JSON.stringify({
+              words: filteredWords,
+              timestamp: Date.now(),
+              version: '1.0'
+            }));
+            console.log('💾 Mots hard mode sauvegardés en cache local');
+          } catch (e) {
+            console.warn('⚠️ Impossible de sauvegarder en localStorage:', e);
+          }
+        }
+        
+        return filteredWords;
+      }),
+      catchError(err => {
+        console.error('❌ Erreur lors du chargement des mots hard mode:', err);
+        
+        // ✅ Essayer de charger depuis le cache local
+        if (isPlatformBrowser(this.platformId)) {
+          try {
+            const cachedData = localStorage.getItem('hardModeWords');
+            if (cachedData) {
+              const parsed = JSON.parse(cachedData);
+              const age = Date.now() - parsed.timestamp;
+              
+              // Cache valide pendant 7 jours
+              if (age < 7 * 24 * 60 * 60 * 1000 && parsed.words?.length > 0) {
+                console.log('🔄 Utilisation du cache local pour le hard mode');
+                this.hardModeWords = parsed.words;
+                this.hardModeLoaded = true;
+                return of(parsed.words);
+              }
+            }
+          } catch (e) {
+            console.warn('⚠️ Erreur lors de la lecture du cache:', e);
+          }
+        }
+        
+        // ✅ Fallback : utiliser une liste hard réduite intégrée
+        const fallbackHardWords = this.getFallbackHardWords();
+        console.log(`🛡️ Utilisation du fallback hard mode: ${fallbackHardWords.length} mots`);
+        
+        this.hardModeWords = fallbackHardWords;
+        this.hardModeLoaded = true;
+        
+        return of(fallbackHardWords);
+      })
+    );
+  }
+
+  // ✅ Statistiques de répartition par longueur
+  private getWordLengthStats(words: string[]): { [length: number]: number } {
+    return words.reduce((stats, word) => {
+      const len = word.length;
+      stats[len] = (stats[len] || 0) + 1;
+      return stats;
+    }, {} as { [length: number]: number });
+  }
+
+  // ✅ Liste de fallback pour le mode hard (mots complexes intégrés)
+  private getFallbackHardWords(): string[] {
+    return [
+      // Mots scientifiques et techniques
+      'ALGORITHME', 'MAGNETISME', 'BIOCHIMIE', 'NEUROLOGIE', 'QUANTIQUE', 'RELATIVITE',
+      
+      // Mots littéraires et culturels
+      'METAPHYSIQUE', 'DIALECTIQUE', 'RHETORIQUE', 'SYNECDOQUE', 'METONYMIE', 'ALLEGORIE',
+      
+      // Mots géographiques complexes
+      'ARCHIPEL', 'TOUNDRA', 'ESTUAIRE', 'PENINSULE', 'TOPOGRAPHIE', 'TECTONIQUE',
+      
+      // Mots médicaux
+      'DERMATOLOGIE', 'CARDIOLOGIE', 'PNEUMOLOGIE', 'HEMATOLOGIE', 'ONCOLOGIE', 'PEDIATRIE',
+      
+      // Mots artistiques
+      'SYMPHONIE', 'POLYPHONIE', 'CONTREPOINT', 'HARMONIQUE', 'CHROMATIQUE', 'BAROQUE',
+      
+      // Mots philosophiques
+      'EXISTENTIALISME', 'STRUCTURALISME', 'POSTMODERNISME', 'NIHILISME', 'DETERMINISME', 'PRAGMATISME'
+    ];
+  }
+
+  // ✅ Obtenir un mot du mode hard GitHub
+  private getWordFromGitHubHardMode(): Observable<string> {
+    return this.loadHardModeWords().pipe(
+      switchMap(words => {
+        const availableWords = words.filter(word => !this.hardModeUsedWords.has(word));
+        
+        if (availableWords.length === 0) {
+          console.log('🔄 Tous les mots hard mode utilisés, réinitialisation...');
+          this.hardModeUsedWords.clear();
+          return this.getWordFromGitHubHardMode();
+        }
+
+        // ✅ Favoriser les mots de longueur moyenne (5-7 lettres)
+        const preferredWords = availableWords.filter(word => word.length >= 5 && word.length <= 7);
+        const wordsToChooseFrom = preferredWords.length > 0 ? preferredWords : availableWords;
+        
+        const randomWord = wordsToChooseFrom[Math.floor(Math.random() * wordsToChooseFrom.length)];
+        console.log(`🔥 Mot hard mode GitHub sélectionné: ${randomWord} (${randomWord.length} lettres)`);
+        
+        return of(randomWord);
+      })
+    );
+  }
+
+  // ✅ Source de mots premium français (maintenant niveau moyen)
   private getWordFromPremiumList(): Observable<string> {
     const availableWords = this.premiumWords.filter(word => !this.usedWords.has(word));
     
@@ -180,13 +388,25 @@ export class GameService {
     return of(randomWord);
   }
 
-  // ✅ Méthode simplifiée pour essayer les sources locales
-  private tryWordSources(): Observable<string> {
+  // ✅ Méthode pour essayer les sources selon la difficulté
+  private tryWordSources(difficulty: string = 'facile'): Observable<string> {
+    // Activer les sources selon la difficulté
     const enabledSources = this.wordSources
-      .filter(source => source.enabled)
+      .filter(source => {
+        if (difficulty === 'difficile' && source.difficulty === 'difficile') return true;
+        if (difficulty === 'moyen' && (source.difficulty === 'moyen' || source.difficulty === 'facile')) return true;
+        if (difficulty === 'facile' && source.difficulty === 'facile') return true;
+        return false;
+      })
       .sort((a, b) => a.priority - b.priority);
 
-    console.log('🔄 Sources locales activées:', enabledSources.map(s => `${s.name}(${s.priority})`));
+    console.log(`🔄 Sources activées pour difficulté "${difficulty}":`, 
+      enabledSources.map(s => `${s.name}(${s.priority})`));
+
+    if (enabledSources.length === 0) {
+      console.warn('⚠️ Aucune source disponible pour cette difficulté, fallback');
+      return this.getWordFromSecurityList();
+    }
 
     return from(enabledSources).pipe(
       concatMap((source, index) => 
@@ -352,26 +572,33 @@ export class GameService {
     return new HttpHeaders().set('Authorization', `Bearer ${token}`);
   }
 
-  // ✅ Méthode principale simplifiée - plus d'API externe !
+  // ✅ Méthode principale avec support de difficulté
   getRandomWord(difficulty: string = 'facile'): Observable<GameResponse> {
     // Réinitialiser si trop de mots utilisés
-    if (this.usedWords.size >= this.maxUsedWords) {
-      this.resetUsedWords();
+    const maxWords = difficulty === 'difficile' ? this.maxHardModeWords : this.maxUsedWords;
+    const usedWordsSet = difficulty === 'difficile' ? this.hardModeUsedWords : this.usedWords;
+    
+    if (usedWordsSet.size >= maxWords) {
+      if (difficulty === 'difficile') {
+        this.hardModeUsedWords.clear();
+      } else {
+        this.resetUsedWords();
+      }
     }
 
-    console.log(`🎯 Recherche d'un nouveau mot local (${this.usedWords.size}/${this.maxUsedWords} utilisés)`);
+    console.log(`🎯 Recherche d'un nouveau mot ${difficulty} (${usedWordsSet.size}/${maxWords} utilisés)`);
 
-    return this.tryWordSources().pipe(
+    return this.tryWordSources(difficulty).pipe(
       switchMap(word => {
         // Vérifier si le mot a déjà été utilisé récemment
-        if (this.usedWords.has(word) && this.usedWords.size < this.maxUsedWords * 0.9) {
+        if (usedWordsSet.has(word) && usedWordsSet.size < maxWords * 0.9) {
           console.log(`⚠️ Mot "${word}" déjà utilisé, nouvel essai...`);
           return this.getRandomWord(difficulty);
         }
         
         // Ajouter le mot aux mots utilisés
-        this.usedWords.add(word);
-        console.log(`🎉 Nouveau mot sélectionné: ${word} (${this.usedWords.size} mots utilisés)`);
+        usedWordsSet.add(word);
+        console.log(`🎉 Nouveau mot sélectionné: ${word} (${usedWordsSet.size} mots utilisés)`);
         
         // Créer la session de jeu avec ce mot
         return this.createGameSession(word, difficulty);
@@ -413,9 +640,30 @@ export class GameService {
     );
   }
 
-  // ✅ Statistiques des mots disponibles
-  getUsedWordsStats() {
-    return {
+  // ✅ Nouvelles méthodes publiques pour gérer les difficultés
+  enableHardMode() {
+    this.wordSources.find(s => s.name === 'github-hard')!.enabled = true;
+    console.log('🔥 Mode hard activé ! Chargement des mots complexes...');
+    
+    // Précharger les mots en arrière-plan
+    this.loadHardModeWords().subscribe({
+      next: (words) => console.log(`🎯 ${words.length} mots hard mode prêts !`),
+      error: (err) => console.error('❌ Erreur préchargement hard mode:', err)
+    });
+  }
+
+  disableHardMode() {
+    this.wordSources.find(s => s.name === 'github-hard')!.enabled = false;
+    console.log('🔥 Mode hard désactivé');
+  }
+
+  isHardModeEnabled(): boolean {
+    return this.wordSources.find(s => s.name === 'github-hard')?.enabled || false;
+  }
+
+  // ✅ Statistiques étendues avec hard mode - TYPE CORRIGÉ
+  getUsedWordsStats(): WordStats {
+    const basicStats: WordStats = {
       used: this.usedWords.size,
       max: this.maxUsedWords,
       percentage: Math.round((this.usedWords.size / this.maxUsedWords) * 100),
@@ -423,12 +671,28 @@ export class GameService {
       securityAvailable: this.securityWords.filter(w => !this.usedWords.has(w)).length,
       totalWords: this.premiumWords.length + this.securityWords.length
     };
+
+    // ✅ Ajouter les stats du hard mode si disponibles
+    if (this.hardModeLoaded && this.hardModeWords.length > 0) {
+      basicStats.hardMode = {
+        used: this.hardModeUsedWords.size,
+        max: this.maxHardModeWords,
+        percentage: Math.round((this.hardModeUsedWords.size / this.maxHardModeWords) * 100),
+        available: this.hardModeWords.filter(w => !this.hardModeUsedWords.has(w)).length,
+        total: this.hardModeWords.length,
+        enabled: this.isHardModeEnabled()
+      };
+    }
+
+    return basicStats;
   }
 
   // ✅ Activer le mode local uniquement
   useLocalWordsOnly() {
     this.wordSources.forEach(source => {
-      source.enabled = true;
+      if (source.name !== 'github-hard') {
+        source.enabled = true;
+      }
     });
     
     console.log('🇫🇷 Mode mots locaux français activé');
@@ -441,37 +705,97 @@ export class GameService {
       name: source.name,
       enabled: source.enabled,
       priority: source.priority,
+      difficulty: source.difficulty,
       description: this.getSourceDescription(source.name)
     }));
   }
 
   private getSourceDescription(sourceName: string): string {
     switch (sourceName) {
+      case 'github-hard': return `Mode HARD GitHub (${this.hardModeWords.length} mots complexes)`;
       case 'local-premium': return `Mots français premium (${this.premiumWords.length} mots)`;
       case 'local-security': return `Liste de sécurité (${this.securityWords.length} mots)`;
       default: return 'Source inconnue';
     }
   }
 
-  // ✅ Méthode pour déboguer
+  // ✅ Obtenir des mots par difficulté pour preview
+  getWordsByDifficulty(difficulty: string, count: number = 5): Observable<string[]> {
+    const samples: string[] = [];
+    
+    if (difficulty === 'difficile') {
+      return this.loadHardModeWords().pipe(
+        map(words => {
+          for (let i = 0; i < count && i < words.length; i++) {
+            const randomWord = words[Math.floor(Math.random() * words.length)];
+            if (!samples.includes(randomWord)) {
+              samples.push(randomWord);
+            }
+          }
+          return samples;
+        })
+      );
+    } else if (difficulty === 'moyen') {
+      for (let i = 0; i < count; i++) {
+        const randomWord = this.premiumWords[Math.floor(Math.random() * this.premiumWords.length)];
+        if (!samples.includes(randomWord)) {
+          samples.push(randomWord);
+        }
+      }
+    } else {
+      for (let i = 0; i < count; i++) {
+        const randomWord = this.securityWords[Math.floor(Math.random() * this.securityWords.length)];
+        if (!samples.includes(randomWord)) {
+          samples.push(randomWord);
+        }
+      }
+    }
+    
+    return of(samples);
+  }
+
+  // ✅ Méthode pour tester le hard mode
+  testHardMode(): Observable<string[]> {
+    return this.loadHardModeWords().pipe(
+      map(words => {
+        const samples = [];
+        for (let i = 0; i < 10 && i < words.length; i++) {
+          const randomIndex = Math.floor(Math.random() * words.length);
+          samples.push(words[randomIndex]);
+        }
+        console.log('🔥 Échantillon de mots hard mode:', samples);
+        return samples;
+      })
+    );
+  }
+
+  // ✅ Méthode de débogage CORRIGÉE avec vérification sécurisée
   debugWordSources() {
-    console.log('=== 🔍 État des sources de mots LOCALES ===');
+    console.log('=== 🔍 État des sources de mots LOCALES + HARD MODE ===');
     this.wordSources.forEach(source => {
-      console.log(`${source.name}: ${source.enabled ? '✅' : '❌'} (priorité: ${source.priority}) - ${this.getSourceDescription(source.name)}`);
+      console.log(`${source.name}: ${source.enabled ? '✅' : '❌'} (priorité: ${source.priority}, difficulté: ${source.difficulty}) - ${this.getSourceDescription(source.name)}`);
     });
     
-    const stats = this.getUsedWordsStats();
+    const stats: WordStats = this.getUsedWordsStats();
     console.log(`📊 Mots utilisés: ${stats.used}/${stats.max} (${stats.percentage}%)`);
     console.log(`🎯 Premium disponibles: ${stats.premiumAvailable}/${this.premiumWords.length}`);
     console.log(`🛡️ Sécurité disponibles: ${stats.securityAvailable}/${this.securityWords.length}`);
-    console.log(`📚 Total de mots: ${stats.totalWords}`);
+    
+    // ✅ Vérification sécurisée avec optional chaining
+    if (stats.hardMode) {
+      console.log(`🔥 Hard mode disponibles: ${stats.hardMode.available}/${stats.hardMode.total} (${stats.hardMode.enabled ? 'ACTIVÉ' : 'DÉSACTIVÉ'})`);
+    } else {
+      console.log(`🔥 Hard mode: ${this.hardModeLoaded ? 'Chargé mais stats non disponibles' : 'Non chargé'} (${this.isHardModeEnabled() ? 'ACTIVÉ' : 'DÉSACTIVÉ'})`);
+    }
+    
     console.log('=====================================');
   }
 
   // ✅ Réinitialisation forcée
   forceResetUsedWords() {
     this.resetUsedWords();
-    console.log('🔄 Réinitialisation forcée des mots utilisés');
+    this.hardModeUsedWords.clear();
+    console.log('🔄 Réinitialisation forcée de tous les mots utilisés');
   }
 
   // ✅ Activer/désactiver le mode développement
@@ -480,8 +804,8 @@ export class GameService {
     console.log(`🔧 Mode développement: ${enabled ? 'ACTIVÉ' : 'DÉSACTIVÉ'}`);
   }
 
-  // ✅ Obtenir des statistiques complètes
-  getCompleteStats() {
+  // ✅ Obtenir des statistiques complètes - TYPE CORRIGÉ
+  getCompleteStats(): CompleteStats {
     const stats = this.getUsedWordsStats();
     return {
       ...stats,

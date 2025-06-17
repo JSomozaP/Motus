@@ -788,11 +788,21 @@
     animation: flip 0.6s ease-in-out;
   }
 
-  // Style Motus traditionnel - Fond bleu pour absentes
+  // ✅ CORRECTION - Style Motus traditionnel pour lettres absentes (incorrect)
+  &.incorrect {
+    background-color: #007bff !important; // ✅ Force l'application
+    color: white !important;
+    border: 2px solid #0056b3 !important;
+    border-radius: 5px;
+    animation: flip 0.6s ease-in-out;
+  }
+
+  // ✅ Garder aussi .absent pour compatibilité
   &.absent {
-    background-color: #007bff;
-    color: white;
-    border: 2px solid #0056b3;
+    background-color: #007bff !important;
+    color: white !important;
+    border: 2px solid #0056b3 !important;
+    border-radius: 5px;
     animation: flip 0.6s ease-in-out;
   }
 
@@ -897,7 +907,8 @@
       }
       
       // Fond bleu pour les lettres absentes
-      &.absent-motus {
+      &.absent-motus,
+      &.incorrect-motus {
         background-color: #007bff;
         color: white;
         border: 2px solid #0056b3;
@@ -1195,6 +1206,12 @@
     &.present {
       border-width: 2px;
     }
+    
+    // ✅ CORRECTION - Aussi pour incorrect
+    &.incorrect,
+    &.absent {
+      border-width: 2px;
+    }
   }
   
   .game-header h1 {
@@ -1363,7 +1380,9 @@
     font-size: 18px;
     
     &.correct,
-    &.present {
+    &.present,
+    &.incorrect,
+    &.absent {
       border-width: 2px;
     }
   }
@@ -1390,95 +1409,28 @@
   
   .color-legend {
     .legend-item {
-      gap: 10px;
-      
       .legend-cell {
-        width: 30px;
-        height: 30px;
-        font-size: 14px;
+        // ...existing code...
         
-        &.correct-motus,
-        &.present-motus {
+        &.absent-motus,
+        &.incorrect-motus {
           border-width: 2px;
         }
       }
-      
-      .legend-text {
-        font-size: 0.85em;
-      }
     }
   }
+}
 
-  // ✅ Modal responsive pour très petits écrans
-  .login-modal {
-    padding: 15px;
-    margin: 10px;
-    max-width: 320px;
-    
-    h2 {
-      font-size: 1.5em;
-    }
-    
-    .form-group {
-      margin-bottom: 12px;
-    }
-    
-    .login-btn, .test-btn {
-      padding: 10px;
-      font-size: 14px;
-    }
-  }
+// ✅ CORRECTION - Aussi dans la légende
+.legend-cell {
+  // ...existing code...
   
-  // ✅ Welcome screen responsive
-  .welcome-content {
-    padding: 25px;
-    
-    h1 {
-      font-size: 2.2em;
-    }
-    
-    p {
-      font-size: 1.1em;
-    }
-    
-    .welcome-features {
-      .feature {
-        padding: 8px 12px;
-        font-size: 0.9em;
-      }
-    }
-  }
-  
-  // ✅ Session stats très petits écrans
-  .session-stats {
-    .stat-card {
-      min-width: 70px;
-      padding: 10px 12px;
-      
-      .stat-value {
-        font-size: 1.3em;
-      }
-      
-      .stat-label {
-        font-size: 0.75em;
-      }
-    }
-  }
-  
-  // ✅ Difficulté très petits écrans
-  .difficulty-btn {
-    padding: 12px 10px;
-    
-    .difficulty-icon {
-      font-size: 1.8em;
-    }
-    
-    .difficulty-name {
-      font-size: 1em;
-    }
-    
-    .difficulty-desc {
-      font-size: 0.8em;
-    }
+  // ✅ Fond bleu pour les lettres absentes/incorrectes
+  &.absent-motus,
+  &.incorrect-motus {
+    background-color: #007bff;
+    color: white;
+    border: 2px solid #0056b3;
+    border-radius: 5px;
   }
 }

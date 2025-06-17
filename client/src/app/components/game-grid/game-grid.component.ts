@@ -438,7 +438,7 @@ export class GameGridComponent implements OnInit {
     }
   }
 
-  // ✅ NOUVELLE MÉTHODE POUR GÉRER LES RÉPONSES SERVEUR
+  // ✅ CORRECTION - Méthode handleServerResponse
   private handleServerResponse(response: any, guess: string, attemptNumber: number) {
     console.log('📡 Traitement réponse serveur:', response);
     
@@ -448,26 +448,42 @@ export class GameGridComponent implements OnInit {
         const cell = this.grid[this.currentRow][i];
         const serverState = response.result[i].status;
         
-        // Conversion des états serveur vers états CSS
+        // ✅ CORRECTION - Conversion des états serveur vers états CSS
         switch (serverState) {
           case 'correct':
             cell.state = 'correct';
+            console.log(`✅ Lettre "${guess[i]}" correcte (position ${i})`);
             break;
           case 'present':
             cell.state = 'present';
+            console.log(`🟡 Lettre "${guess[i]}" présente mais mal placée (position ${i})`);
             break;
           case 'absent':
-            cell.state = 'incorrect';
-            break;
+          case 'wrong':
+          case 'not_found':
           default:
+            // ✅ FORCER l'état 'incorrect' pour toutes les lettres absentes
             cell.state = 'incorrect';
+            console.log(`🔴 Lettre "${guess[i]}" absente -> état 'incorrect' (position ${i})`);
+            break;
         }
+        
+        // ✅ DEBUG - Vérifier l'état final de chaque cellule
+        console.log(`📝 Cellule [${this.currentRow}][${i}]: "${cell.letter}" -> état: "${cell.state}"`);
       }
       
       // ✅ Mise à jour du clavier
-      const keyStates = response.result.map((r: any) => 
-        r.status === 'absent' ? 'incorrect' : r.status
-      );
+      const keyStates = response.result.map((r: any) => {
+        switch (r.status) {
+          case 'correct': return 'correct';
+          case 'present': return 'present';
+          case 'absent':
+          case 'wrong':
+          case 'not_found':
+          default: return 'incorrect';
+        }
+      });
+      
       this.updateKeyStates(guess, keyStates);
     }
     
@@ -792,7 +808,7 @@ export class GameGridComponent implements OnInit {
     }
   }
 
-  // ✅ MÉTHODE MANQUANTE : checkWordLocally
+  // ✅ CORRECTION - Méthode checkWordLocally
   private checkWordLocally(guess: string, attemptNumber: number) {
     const target = this.targetWord;
     console.log('🔍 Vérification locale:', { guess, target, attemptNumber });
@@ -830,68 +846,84 @@ export class GameGridComponent implements OnInit {
       }
     }
     
-    // ✅ MISE À JOUR DE LA GRILLE AVEC LES BONS ÉTATS CSS
+    // ✅ CORRECTION - MISE À JOUR DE LA GRILLE AVEC LES BONS ÉTATS CSS
     for (let i = 0; i < guess.length; i++) {
       const cell = this.grid[this.currentRow][i];
       cell.letter = guessLetters[i];
       
-      // ✅ États qui correspondent au CSS
+      // ✅ FORCER les bons états qui correspondent au CSS
       switch (result[i].status) {
         case 'correct':
-          cell.state = 'correct';  // Vert
+          cell.state = 'correct';  // Carré rouge
+          console.log(`✅ LOCAL - Lettre "${guessLetters[i]}" correcte -> 'correct'`);
           break;
         case 'present':
-          cell.state = 'present';  // Orange/Jaune
+          cell.state = 'present';  // Cercle jaune
+          console.log(`🟡 LOCAL - Lettre "${guessLetters[i]}" présente -> 'present'`);
           break;
         case 'absent':
-          cell.state = 'incorrect'; // Gris
+        default:
+          // ✅ IMPORTANT - Forcer 'incorrect' pour fond bleu
+          cell.state = 'incorrect'; // Fond bleu
+          console.log(`🔴 LOCAL - Lettre "${guessLetters[i]}" absente -> 'incorrect'`);
           break;
+      }
+      
+      // ✅ DEBUG - Vérifier l'état final appliqué
+      console.log(`📝 LOCAL - Cellule [${this.currentRow}][${i}]: "${cell.letter}" -> état final: "${cell.state}"`);
     }
-  }
-  
-  // ✅ MISE À JOUR DU CLAVIER
-  this.updateKeyStates(guess, result.map(r => {
-    switch (r.status) {
-      case 'correct': return 'correct';
-      case 'present': return 'present';
-      case 'absent': return 'incorrect';
-      default: return 'incorrect';
-    }
-  }));
-
-  // Vérifier si le mot est trouvé
-  const won = guess === target;
-  const gameOver = won || this.currentRow >= 5;
-  
-  console.log('🎯 Résultat validation:', { won, gameOver, result });
-  
-  const mockResponse = {
-    won,
-    gameOver,
-    targetWord: gameOver ? target : undefined,
-    result,
-    remainingAttempts: this.remainingAttempts - 1
-  };
-  
-  this.handleWordCheckResponse(mockResponse, guess, attemptNumber);
-}
-
-// ✅ MÉTHODE MANQUANTE : updateKeyStates
-private updateKeyStates(guess: string, states: string[]) {
-  for (let i = 0; i < guess.length; i++) {
-    const letter = guess[i];
-    const state = states[i];
     
-    // ✅ Priorité des états : correct > present > incorrect
-    if (state === 'correct') {
-      this.keyStates[letter] = 'correct';
-    } else if (state === 'present' && this.keyStates[letter] !== 'correct') {
-      this.keyStates[letter] = 'present';
-    } else if (state === 'incorrect' && !this.keyStates[letter]) {
-      this.keyStates[letter] = 'incorrect';
-    }
+    // ✅ MISE À JOUR DU CLAVIER
+    const keyStates = result.map(r => {
+      switch (r.status) {
+        case 'correct': return 'correct';
+        case 'present': return 'present';
+        case 'absent': 
+        default: return 'incorrect';
+      }
+    });
+    
+    this.updateKeyStates(guess, keyStates);
+
+    // Vérifier si le mot est trouvé
+    const won = guess === target;
+    const gameOver = won || this.currentRow >= 5;
+    
+    console.log('🎯 Résultat validation:', { won, gameOver, result });
+    
+    const mockResponse = {
+      won,
+      gameOver,
+      targetWord: gameOver ? target : undefined,
+      result,
+      remainingAttempts: this.remainingAttempts - 1
+    };
+    
+    this.handleWordCheckResponse(mockResponse, guess, attemptNumber);
   }
-  
-  console.log('⌨️ États clavier mis à jour:', this.keyStates);
-}
+
+  // ✅ CORRECTION - Méthode updateKeyStates
+  private updateKeyStates(guess: string, states: string[]) {
+    console.log('⌨️ Mise à jour états clavier:', { guess, states });
+    
+    for (let i = 0; i < guess.length; i++) {
+      const letter = guess[i];
+      const state = states[i];
+      
+      console.log(`⌨️ Lettre "${letter}" -> nouvel état: "${state}"`);
+      
+      // ✅ Priorité des états : correct > present > incorrect
+      if (state === 'correct') {
+        this.keyStates[letter] = 'correct';
+      } else if (state === 'present' && this.keyStates[letter] !== 'correct') {
+        this.keyStates[letter] = 'present';
+      } else if (state === 'incorrect' && !this.keyStates[letter]) {
+        // ✅ CORRECTION - Bien utiliser 'incorrect'
+        this.keyStates[letter] = 'incorrect';
+        console.log(`⌨️ CORRECTION - Lettre "${letter}" mise à jour -> 'incorrect'`);
+      }
+    }
+    
+    console.log('⌨️ États finaux du clavier:', this.keyStates);
+  }
 }

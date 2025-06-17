@@ -91,7 +91,8 @@ export class GameGridComponent implements OnInit {
 
   ngOnInit() {
     if (isPlatformBrowser(this.platformId)) {
-      this.gameService.useLocalWordsOnly();
+      // ✅ CORRECTION - Supprimer la méthode inexistante
+      // this.gameService.useLocalWordsOnly(); // SUPPRIMER cette ligne
       this.checkAuthentication();
       
       // Charger la difficulté sauvegardée
@@ -108,7 +109,8 @@ export class GameGridComponent implements OnInit {
 
   // ✅ MÉTHODES D'AUTHENTIFICATION
   checkAuthentication() {
-    this.gameService.setDevelopmentMode(true); // ✅ Ne pas assigner le retour (void)
+    // ✅ CORRECTION - Supprimer l'appel à la méthode inexistante
+    // this.gameService.setDevelopmentMode(true); // SUPPRIMER cette ligne
     this.isAuthenticated = true; // ✅ Définir manuellement l'authentification
     if (this.isAuthenticated) {
       this.loadNewWord();
@@ -197,35 +199,27 @@ export class GameGridComponent implements OnInit {
   }
 
   previewDifficulty(difficulty: 'facile' | 'moyen' | 'difficile' | 'cauchemar') {
-    if (difficulty === 'difficile') {
-      this.trouveMotService.testConnection().subscribe({
-        next: (isAvailable) => {
-          if (isAvailable) {
-            this.trouveMotService.getSampleWords('difficile', 3).subscribe({
-              next: (samples) => {
-                this.toastService.info(`🔥 DIFFICILE\nExemples: ${samples.join(', ')}`, 4000);
-              },
-              error: () => {
-                this.toastService.warning('🔥 DIFFICILE - API indisponible', 3000);
-              }
-            });
-          } else {
-            this.toastService.warning('🔥 DIFFICILE - Mode hors ligne', 3000);
-          }
-        }
-      });
-    } else {
-      this.gameService.getWordsByDifficulty(difficulty, 3).subscribe({
-        next: (samples) => {
-          const labels = {
-            'facile': '🟢 FACILE',
-            'moyen': '📚 MOYEN',
-            'cauchemar': '💀 CAUCHEMAR'
-          };
-          this.toastService.info(`${labels[difficulty]}\nExemples: ${samples.join(', ')}`, 4000);
-        }
-      });
-    }
+    const previews = {
+      'facile': {
+        label: '🟢 FACILE',
+        description: 'Mots courants\nExemples: ARBRE, CHIEN, MAISON'
+      },
+      'moyen': {
+        label: '📚 MOYEN', 
+        description: 'Mots variés\nExemples: JARDIN, VOITURE, VOYAGE'
+      },
+      'difficile': {
+        label: '🔥 DIFFICILE',
+        description: 'Mots rares via API\nExemples: AZYME, FJORD, SPHINX'
+      },
+      'cauchemar': {
+        label: '💀 CAUCHEMAR',
+        description: 'Mots ultra-complexes (6-12 lettres)\nExemples: BYZANTINE, FREQUENCY'
+      }
+    };
+    
+    const preview = previews[difficulty];
+    this.toastService.info(`${preview.label}\n${preview.description}`, 4000);
   }
 
   // ✅ MÉTHODES DE JEU
@@ -235,10 +229,17 @@ export class GameGridComponent implements OnInit {
     this.wordStartTime = Date.now();
     
     if (this.currentDifficulty === 'difficile') {
-      this.loadWordFromDatamuse();
+      this.loadWordFromTrouveMot(); // ✅ CORRECTION - utiliser la bonne méthode
       return;
     }
     
+    // ✅ NOUVEAU - Mode cauchemar avec mots longs
+    if (this.currentDifficulty === 'cauchemar') {
+      this.loadWordFromCauchemar();
+      return;
+    }
+    
+    // Pour les autres difficultés (facile, moyen)
     this.gameService.getRandomWord(this.currentDifficulty).subscribe({
       next: (response) => {
         if (response && response.gameId) {
@@ -248,7 +249,7 @@ export class GameGridComponent implements OnInit {
           this.wordLength = response.length;
           this.targetWord = 'X'.repeat(response.length);
           
-          this.initializeGrid();
+          this.resetGrid(); // ✅ CORRECTION - utiliser la bonne méthode
           this.isLoading = false;
         }
       },
@@ -260,182 +261,140 @@ export class GameGridComponent implements OnInit {
     });
   }
 
-  private loadWordFromDatamuse() {
-    this.loadWordFromTrouveMot();
-  }
-
-  private loadWordFromTrouveMot() {
-    console.log('🔥 Tentative de chargement via API trouve-mot.fr...');
+  // ✅ CORRECTION - Méthode pour charger un mot cauchemar avec vraie API
+  private loadWordFromCauchemar() {
+    console.log('💀 Chargement mot CAUCHEMAR (6-12 lettres) via vraie API...');
     
-    // Tester directement l'API
-    this.trouveMotService.getRandomWord().subscribe({
-      next: (word) => {
-        if (word && word.length >= 3) {
-          const randomWord = word.toUpperCase();
+    // ✅ OPTION 1 - Utiliser sizemin pour avoir des mots longs garantis
+    this.trouveMotService.getWordsForCauchemar(6, 30).subscribe({
+      next: (words) => {
+        console.log(`💀 API sizemin réponse:`, words);
+        
+        if (words && words.length > 0) {
+          // Filtrer les mots entre 6 et 12 lettres
+          const validWords = words.filter(word => word.length >= 6 && word.length <= 12);
           
-          this.gameId = Date.now();
-          this.remainingAttempts = 6;
-          this.hint = randomWord.charAt(0);
-          this.wordLength = randomWord.length;
-          this.targetWord = randomWord;
-          
-          this.initializeGrid();
-          this.isLoading = false;
-          
-          this.toastService.success(`🔥 Mot DIFFICILE chargé via API ! (${randomWord.length} lettres)`, 3000);
-          console.log('✅ Mot difficile chargé via API trouve-mot.fr:', randomWord);
-        } else {
-          console.warn('⚠️ Mot invalide reçu de l\'API, fallback vers alternative');
-          this.tryAlternativeAPI();
+          if (validWords.length > 0) {
+            const randomWord = validWords[Math.floor(Math.random() * validWords.length)].toUpperCase();
+            
+            this.gameId = Date.now();
+            this.remainingAttempts = 6;
+            this.hint = randomWord.charAt(0);
+            this.wordLength = randomWord.length;
+            this.targetWord = randomWord;
+            
+            this.resetGrid();
+            this.isLoading = false;
+            
+            this.toastService.success(`💀 Mot CAUCHEMAR chargé ! (${randomWord.length} lettres)`, 3000);
+            console.log('✅ Mot cauchemar chargé via API sizemin:', randomWord);
+            return;
+          }
         }
+        
+        // Si pas de mots valides, utiliser fallback
+        console.warn('⚠️ Pas de mots valides via sizemin, tentative avec longueur spécifique...');
+        this.trySpecificLengthCauchemar();
       },
       error: (error) => {
-        console.error('❌ Erreur API trouve-mot.fr:', error);
-        console.log('🔄 Fallback vers mots locaux...');
-        this.tryAlternativeAPI();
+        console.error('❌ Erreur chargement cauchemar via sizemin:', error);
+        this.trySpecificLengthCauchemar();
       }
     });
   }
 
-  private tryAlternativeAPI() {
-    // Essayer la méthode alternative avec mots locaux difficiles
-    this.trouveMotService.getWordsByLengthAlternative(5).subscribe({
+  // ✅ NOUVEAU - Essayer avec une longueur spécifique via l'API /size/
+  private trySpecificLengthCauchemar() {
+    // Générer une longueur aléatoire entre 6 et 12 lettres
+    const minLength = 6;
+    const maxLength = 12;
+    const targetLength = Math.floor(Math.random() * (maxLength - minLength + 1)) + minLength;
+    
+    console.log(`💀 Tentative API /size/ avec ${targetLength} lettres...`);
+    
+    this.trouveMotService.getWordsByLength(targetLength, 'cauchemar', 20).subscribe({
       next: (words) => {
-        if (words.length > 0) {
-          const randomWord = words[Math.floor(Math.random() * words.length)].toUpperCase();
+        console.log(`💀 API /size/${targetLength} réponse:`, words);
+        
+        if (words && words.length > 0) {
+          const validWords = words.filter(word => word.length >= 6 && word.length <= 12);
           
-          this.gameId = Date.now();
-          this.remainingAttempts = 6;
-          this.hint = randomWord.charAt(0);
-          this.wordLength = randomWord.length;
-          this.targetWord = randomWord;
-          
-          this.initializeGrid();
-          this.isLoading = false;
-          
-          this.toastService.success(`🔥 Mot DIFFICILE (local) chargé ! (${randomWord.length} lettres)`, 3000);
-          console.log('🔥 Mot difficile chargé via liste locale:', randomWord);
-        } else {
-          this.fallbackToLocalWords();
+          if (validWords.length > 0) {
+            const randomWord = validWords[Math.floor(Math.random() * validWords.length)].toUpperCase();
+            
+            this.gameId = Date.now();
+            this.remainingAttempts = 6;
+            this.hint = randomWord.charAt(0);
+            this.wordLength = randomWord.length;
+            this.targetWord = randomWord;
+            
+            this.resetGrid();
+            this.isLoading = false;
+            
+            this.toastService.success(`💀 Mot CAUCHEMAR (${randomWord.length}L) chargé !`, 3000);
+            console.log('✅ Mot cauchemar chargé via API /size/:', randomWord);
+            return;
+          }
         }
+        
+        // Dernier recours : fallback traditionnel
+        console.warn('💀 Fallback vers méthode alternative...');
+        this.tryAlternativeLengthCauchemar();
       },
-      error: () => {
-        this.fallbackToLocalWords();
+      error: (error) => {
+        console.error('❌ Erreur API /size/ cauchemar:', error);
+        this.tryAlternativeLengthCauchemar();
       }
     });
   }
 
-  private fallbackToLocalWords() {
-    this.toastService.warning('🔄 Fallback vers mots locaux normaux', 3000);
-    this.currentDifficulty = 'moyen';
-    this.loadNewWord();
-  }
-
-  private initializeGrid() {
-    console.log('🏗️ Initialisation grille:', { wordLength: this.wordLength, hint: this.hint });
+  // ✅ NOUVEAU - Essayer d'autres longueurs en cas d'échec
+  private tryAlternativeLengthCauchemar() {
+    const fallbackLengths = [8, 7, 6, 9, 10, 11]; // Ordre de préférence
+    let currentIndex = 0;
     
-    this.grid = [];
-    this.currentRow = 0;
-    this.currentCol = 0;
-    this.gameOver = false;
-    this.wordFound = false;
-    this.keyStates = {}; // ✅ Reset du clavier
-    
-    // Créer la grille 6x[wordLength]
-    for (let i = 0; i < 6; i++) {
-      const row = [];
-      for (let j = 0; j < this.wordLength; j++) {
-        row.push({
-          letter: (i === 0 && j === 0 && this.hint) ? this.hint : '',
-          state: (i === 0 && j === 0 && this.hint) ? 'hint' : 'empty'
-        });
-      }
-      this.grid.push(row);
-    }
-    
-    // ✅ Démarrer à la bonne position
-    if (this.hint) {
-      this.currentCol = 1; // Commencer après le hint
-      this.keyStates[this.hint] = 'hint'; // Marquer la lettre hint
-    } else {
-      this.currentCol = 0;
-    }
-    
-    console.log('✅ Grille initialisée:', this.grid);
-  }
-
-  // ✅ GESTION DU CLAVIER
-  handleKeyPress(key: string) {
-    if (this.isLoading || this.gameOver) return;
-
-    console.log('🎹 Touche pressée:', key); // ✅ Debug pour voir quelle valeur arrive
-
-    if (key === 'ENTER') {
-      this.checkWord();
-    } else if (key === 'BACKSPACE' || key === 'DEL' || key === 'DELETE' || key === '⌫') {
-      // ✅ Gérer toutes les variantes possibles du bouton supprimer
-      this.deleteLetter();
-    } else if (key.length === 1 && /[A-Z]/.test(key)) {
-      this.addLetter(key);
-    } else {
-      console.warn('⚠️ Touche non reconnue:', key);
-    }
-  }
-
-  // ✅ CORRECTION DE L'AJOUT DE LETTRES
-  private addLetter(letter: string) {
-    if (this.currentCol < this.wordLength && this.currentRow < 6) {
-      console.log('📝 Ajout lettre:', { letter, row: this.currentRow, col: this.currentCol });
-      
-      this.grid[this.currentRow][this.currentCol].letter = letter;
-      this.grid[this.currentRow][this.currentCol].state = 'filled'; // ✅ État pour lettre saisie
-      this.currentCol++;
-    }
-  }
-
-  // ✅ CORRECTION DE LA SUPPRESSION DE LETTRES
-  private deleteLetter() {
-    if (this.currentCol > 0) {
-      // ✅ Ne pas effacer la lettre hint sur la première ligne
-      if (this.currentRow === 0 && this.currentCol === 1 && this.hint) {
+    const tryNextLength = () => {
+      if (currentIndex >= fallbackLengths.length) {
+        // Dernier recours : utiliser un mot difficile normal
+        console.warn('💀 Fallback vers mode difficile pour cauchemar');
+        this.loadWordFromTrouveMot(); // ✅ CORRECTION - utiliser la bonne méthode
         return;
       }
       
-      this.currentCol--;
-      this.grid[this.currentRow][this.currentCol].letter = '';
-      this.grid[this.currentRow][this.currentCol].state = 'empty';
+      const length = fallbackLengths[currentIndex];
+      console.log(`💀 Tentative fallback avec ${length} lettres...`);
       
-      console.log('🗑️ Lettre supprimée:', { row: this.currentRow, col: this.currentCol });
-    }
-  }
-
-  private checkWord() {
-    if (this.currentCol !== this.wordLength || !this.gameId) {
-      console.warn('⚠️ Mot incomplet ou pas de gameId', { currentCol: this.currentCol, wordLength: this.wordLength, gameId: this.gameId });
-      return;
-    }
-
-    const guess = this.grid[this.currentRow].map(cell => cell.letter).join('');
-    const attemptNumber = this.currentRow + 1;
-    
-    console.log('✅ Vérification mot:', { guess, attemptNumber, difficulty: this.currentDifficulty });
-    
-    if (this.currentDifficulty === 'difficile') {
-      this.checkWordLocally(guess, attemptNumber);
-    } else {
-      // ✅ Vérification via GameService pour les autres difficultés
-      this.gameService.submitGuess(guess, this.gameId, attemptNumber).subscribe({
-        next: (response) => {
-          console.log('📡 Réponse serveur:', response);
-          this.handleServerResponse(response, guess, attemptNumber);
+      this.trouveMotService.getWordsByLength(length, 'cauchemar', 30).subscribe({
+        next: (words) => {
+          const validWords = words.filter(word => word.length >= 6);
+          
+          if (validWords.length > 0) {
+            const randomWord = validWords[Math.floor(Math.random() * validWords.length)].toUpperCase();
+            
+            this.gameId = Date.now();
+            this.remainingAttempts = 6;
+            this.hint = randomWord.charAt(0);
+            this.wordLength = randomWord.length;
+            this.targetWord = randomWord;
+            
+            this.resetGrid(); // ✅ CORRECTION - utiliser la bonne méthode
+            this.isLoading = false;
+            
+            this.toastService.success(`💀 Mot CAUCHEMAR (${randomWord.length}L) chargé !`, 3000);
+            console.log('🔄 Mot cauchemar fallback chargé:', randomWord);
+          } else {
+            currentIndex++;
+            tryNextLength();
+          }
         },
-        error: (error) => {
-          console.error('❌ Erreur vérification serveur:', error);
-          this.errorMessage = 'Erreur lors de la vérification';
-          this.toastService.error(this.errorMessage, 3000);
+        error: () => {
+          currentIndex++;
+          tryNextLength();
         }
       });
-    }
+    };
+    
+    tryNextLength();
   }
 
   // ✅ CORRECTION - Méthode handleServerResponse
@@ -925,5 +884,178 @@ export class GameGridComponent implements OnInit {
     }
     
     console.log('⌨️ États finaux du clavier:', this.keyStates);
+  }
+
+  // ✅ GARDER SEULEMENT CETTE VERSION - handleKeyPress
+  handleKeyPress(key: string) {
+    if (this.isLoading || this.gameOver) {
+      return;
+    }
+
+    if (key === 'ENTER') {
+      this.checkWord();
+    } else if (key === 'BACKSPACE') {
+      this.deleteLetter();
+    } else if (key.length === 1 && key.match(/[A-Z]/)) {
+      this.addLetter(key);
+    }
+  }
+
+  // ✅ AJOUTER - Méthode pour charger un mot difficile via trouve-mot
+  private loadWordFromTrouveMot() {
+    console.log('🔥 Chargement mot DIFFICILE via API trouve-mot.fr...');
+    
+    this.trouveMotService.getRandomWord().subscribe({
+      next: (word) => {
+        if (word && word.length >= 3) {
+          const randomWord = word.toUpperCase();
+          
+          this.gameId = Date.now();
+          this.remainingAttempts = 6;
+          this.hint = randomWord.charAt(0);
+          this.wordLength = randomWord.length;
+          this.targetWord = randomWord;
+          
+          this.resetGrid();
+          this.isLoading = false;
+          
+          this.toastService.success(`🔥 Mot DIFFICILE chargé via API ! (${randomWord.length} lettres)`, 3000);
+          console.log('✅ Mot difficile chargé:', randomWord);
+        } else {
+          console.warn('⚠️ Mot difficile invalide, fallback vers alternative');
+          this.loadAlternativeDifficultWord();
+        }
+      },
+      error: (error) => {
+        console.error('❌ Erreur chargement difficile:', error);
+        this.loadAlternativeDifficultWord();
+      }
+    });
+  }
+
+  // ✅ AJOUTER - Fallback pour mode difficile
+  private loadAlternativeDifficultWord() {
+    this.trouveMotService.getWordsByLengthAlternative(5).subscribe({
+      next: (words) => {
+        if (words && words.length > 0) {
+          const randomWord = words[Math.floor(Math.random() * words.length)].toUpperCase();
+          
+          this.gameId = Date.now();
+          this.remainingAttempts = 6;
+          this.hint = randomWord.charAt(0);
+          this.wordLength = randomWord.length;
+          this.targetWord = randomWord;
+          
+          this.resetGrid();
+          this.isLoading = false;
+          
+          this.toastService.success(`🔥 Mot DIFFICILE (local) chargé ! (${randomWord.length} lettres)`, 3000);
+          console.log('🔄 Mot difficile local chargé:', randomWord);
+        } else {
+          this.fallbackToEasyMode();
+        }
+      },
+      error: () => {
+        this.fallbackToEasyMode();
+      }
+    });
+  }
+
+  // ✅ AJOUTER - Fallback final vers mode facile
+  private fallbackToEasyMode() {
+    this.toastService.warning('🔄 Difficile indisponible, fallback vers Facile', 3000);
+    this.currentDifficulty = 'facile';
+    this.loadNewWord();
+  }
+
+  // ✅ AJOUTER - Méthode pour réinitialiser la grille
+  private resetGrid() {
+    this.grid = [];
+    this.currentRow = 0;
+    this.currentCol = 0;
+    this.gameOver = false;
+    this.wordFound = false;
+    this.errorMessage = '';
+    this.keyStates = {};
+
+    // Créer une nouvelle grille
+    for (let i = 0; i < 6; i++) {
+      const row = [];
+      for (let j = 0; j < this.wordLength; j++) {
+        row.push({ letter: '', state: 'empty' });
+      }
+      this.grid.push(row);
+    }
+
+    // Si on a un hint, le placer sur la première ligne
+    if (this.hint) {
+      this.grid[0][0].letter = this.hint;
+      this.grid[0][0].state = 'hint';
+      this.currentCol = 1;
+    }
+
+    console.log('🔄 Grille réinitialisée:', {
+      wordLength: this.wordLength,
+      hint: this.hint,
+      currentCol: this.currentCol
+    });
+  }
+
+  // ✅ AJOUTER - Méthode pour vérifier un mot
+  private checkWord() {
+    if (this.currentCol !== this.wordLength || !this.gameId) {
+      console.warn('⚠️ Mot incomplet ou pas de gameId', { 
+        currentCol: this.currentCol, 
+        wordLength: this.wordLength, 
+        gameId: this.gameId 
+      });
+      return;
+    }
+
+    const guess = this.grid[this.currentRow].map(cell => cell.letter).join('');
+    const attemptNumber = this.currentRow + 1;
+    
+    console.log('✅ Vérification mot:', { guess, attemptNumber, difficulty: this.currentDifficulty });
+    
+    // ✅ Gérer difficile ET cauchemar en local
+    if (this.currentDifficulty === 'difficile' || this.currentDifficulty === 'cauchemar') {
+      this.checkWordLocally(guess, attemptNumber);
+    } else {
+      // Vérification via GameService pour facile et moyen
+      this.gameService.submitGuess(guess, this.gameId, attemptNumber).subscribe({
+        next: (response) => {
+          console.log('📡 Réponse serveur:', response);
+          this.handleServerResponse(response, guess, attemptNumber);
+        },
+        error: (error) => {
+          console.error('❌ Erreur vérification serveur:', error);
+          this.errorMessage = 'Erreur lors de la vérification';
+          this.toastService.error(this.errorMessage, 3000);
+        }
+      });
+    }
+  }
+
+  // ✅ AJOUTER - Méthode pour ajouter une lettre
+  private addLetter(letter: string) {
+    if (this.currentCol < this.wordLength && this.currentRow < 6) {
+      this.grid[this.currentRow][this.currentCol].letter = letter.toUpperCase();
+      this.currentCol++;
+      console.log(`📝 Lettre ajoutée: ${letter} à [${this.currentRow}][${this.currentCol - 1}]`);
+    }
+  }
+
+  // ✅ AJOUTER - Méthode pour supprimer une lettre
+  private deleteLetter() {
+    if (this.currentCol > 0) {
+      // Si on a un hint sur la première colonne, ne pas l'effacer
+      const minCol = (this.hint && this.currentRow === 0) ? 1 : 0;
+      
+      if (this.currentCol > minCol) {
+        this.currentCol--;
+        this.grid[this.currentRow][this.currentCol].letter = '';
+        console.log(`🗑️ Lettre supprimée à [${this.currentRow}][${this.currentCol}]`);
+      }
+    }
   }
 }

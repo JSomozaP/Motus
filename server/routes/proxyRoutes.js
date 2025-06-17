@@ -97,4 +97,106 @@ router.get('/trouve-mot/longueur/:length', async (req, res) => {
   }
 });
 
+// ✅ NOUVEAU - Route pour /size/:length/:count (mots de longueur exacte)
+router.get('/trouve-mot/size/:length/:count?', async (req, res) => {
+  try {
+    const { length, count = 1 } = req.params;
+    console.log(`💀 Appel API size/${length}/${count} via proxy...`);
+    
+    const response = await axios.get(`https://trouve-mot.fr/api/size/${length}/${count}`, {
+      timeout: 5000,
+      headers: {
+        'User-Agent': 'Motus-Game/1.0',
+        'Accept': 'application/json'
+      }
+    });
+    
+    console.log(`✅ API size réponse: ${response.data?.length || 0} mots`);
+    res.json(response.data);
+    
+  } catch (error) {
+    console.error(`❌ Erreur API size/${length}/${count}:`, error.message);
+    
+    // ✅ Fallback intelligent avec mots locaux de la bonne longueur
+    const hardWordsByLength = {
+      3: ['AXE', 'GYM', 'HIE', 'OXY', 'QUI', 'RYE', 'VEX', 'ZUT'],
+      4: ['CZAR', 'EXAM', 'JAZZ', 'LYNX', 'ONYX', 'PRIX', 'SEXY', 'UNIX'],
+      5: ['AZYME', 'DJINN', 'FJORD', 'SPHINX', 'TOXIN', 'XENON', 'QUARK', 'EPOXY'],
+      6: ['AZIMUT', 'COGNAC', 'KLAXON', 'WHISKY', 'ZYGOTE', 'GEYSER', 'ABAQUE', 'ABSOLU'],
+      7: ['AZIMUTS', 'CYCLONE', 'QUETZAL', 'RYTHMES', 'TOXINES', 'ABYSSES', 'ACCORDE'],
+      8: ['ABATTOIR', 'ABSTRACT', 'ACCIDENT', 'ACCORDER', 'BYZANTINE', 'COMPLEXE', 'DYNAMITE'],
+      9: ['ABANDONNER', 'BYZANTINE', 'COMPLEXES', 'FREQUENCY', 'GLYCERINE', 'HYPNOTIZE', 'MYSTERIUM'],
+      10: ['ABANDONNEE', 'ABDICATION', 'ABERRANTES', 'ABOLITISME', 'ABONNEMENT', 'ABRICOTIER'],
+      11: ['ABANDONNANT', 'ABDICATIONS', 'ABERRATIONS', 'ABOLITIONS', 'ABONNEMENTS'],
+      12: ['ABANDONNATES', 'ACCELERATIONS', 'ACCENTUATIONS', 'ACCEPTATIONS', 'ACCESSOIRES']
+    };
+    
+    const words = hardWordsByLength[length] || hardWordsByLength[5];
+    const requestedCount = Math.min(parseInt(count), words.length);
+    const selectedWords = words.slice(0, requestedCount);
+    
+    console.log(`🔄 Fallback size: ${selectedWords.length} mots de ${length} lettres`);
+    
+    // Retourner directement les mots (pas d'objets)
+    res.json(selectedWords);
+  }
+});
+
+// ✅ NOUVEAU - Route pour /sizemin/:length/:count (mots de longueur minimum)
+router.get('/trouve-mot/sizemin/:length/:count?', async (req, res) => {
+  try {
+    const { length, count = 1 } = req.params;
+    console.log(`💀 Appel API sizemin/${length}/${count} via proxy...`);
+    
+    const response = await axios.get(`https://trouve-mot.fr/api/sizemin/${length}/${count}`, {
+      timeout: 5000,
+      headers: {
+        'User-Agent': 'Motus-Game/1.0',
+        'Accept': 'application/json'
+      }
+    });
+    
+    console.log(`✅ API sizemin réponse: ${response.data?.length || 0} mots`);
+    res.json(response.data);
+    
+  } catch (error) {
+    console.error(`❌ Erreur API sizemin/${length}/${count}:`, error.message);
+    
+    // ✅ Fallback intelligent avec mots de longueur >= length
+    const allHardWords = [
+      // 6 lettres
+      'AZIMUT', 'COGNAC', 'KLAXON', 'WHISKY', 'ZYGOTE', 'GEYSER', 'ABAQUE', 'ABSOLU', 'ABSENT', 'ABSOUS',
+      'ABYSME', 'ACACIA', 'ACCRUE', 'ACHEVE', 'ACIDUS', 'ACIERU', 'ACTION', 'ADAGIO', 'ADAPTE', 'ADROIT',
+      
+      // 7 lettres
+      'AZIMUTS', 'CYCLONE', 'QUETZAL', 'RYTHMES', 'TOXINES', 'ABYSSES', 'ACCORDE', 'ACHETER', 'ACQUISE', 'ACTIVER',
+      'ADAPTER', 'ADHERER', 'ADJOINT', 'ADMIRER', 'ADOPTER', 'AEROBIC', 'AEROSOL', 'AFFAIRE', 'AFFICHE', 'AFFREUX',
+      
+      // 8 lettres
+      'ABATTOIR', 'ABSTRACT', 'ACCIDENT', 'ACCORDER', 'BYZANTINE', 'COMPLEXE', 'DYNAMITE', 'EXORCISE', 'FREQUENCE',
+      'GLYOXYLE', 'HYPNOTIC', 'ISOCLINE', 'JACINTHE', 'KRYPTONE', 'LUXUEUX', 'MAXIMUM', 'NOCTULE', 'OXIDANT',
+      
+      // 9 lettres
+      'ABANDONNER', 'BYZANTINE', 'COMPLEXES', 'FREQUENCY', 'GLYCERINE', 'HYPNOTIZE', 'MYSTERIUM', 'IZQUIERDA',
+      'JUXTAPOSE', 'KRYOLITE', 'LUXURIEUX', 'NEOLATINE', 'OXYMORRON', 'PARADOXAL', 'QUIPROQUO', 'RHAPSODIC',
+      
+      // 10+ lettres
+      'ABANDONNEE', 'ABDICATION', 'ABERRANTES', 'ABOLITISME', 'ABONNEMENT', 'ABRICOTIER', 'ABSTINENCE', 'ACCESSOIRE',
+      'ABANDONNANT', 'ABDICATIONS', 'ABERRATIONS', 'ABOLITIONS', 'ABONNEMENTS', 'ABREVIATIONS',
+      'ABANDONNATES', 'ACCELERATIONS', 'ACCENTUATIONS', 'ACCEPTATIONS', 'ACCESSOIRES'
+    ];
+    
+    // Filtrer les mots de longueur >= length
+    const minLength = parseInt(length);
+    const validWords = allHardWords.filter(word => word.length >= minLength);
+    const requestedCount = Math.min(parseInt(count), validWords.length);
+    const selectedWords = validWords.slice(0, requestedCount);
+    
+    console.log(`🔄 Fallback sizemin: ${selectedWords.length} mots (>= ${minLength} lettres)`);
+    
+    // Retourner directement les mots
+    res.json(selectedWords);
+  }
+});
+
 export default router;

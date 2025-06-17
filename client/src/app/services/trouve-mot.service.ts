@@ -109,12 +109,108 @@ export class TrouveMotService {
     return fallbackWords[Math.floor(Math.random() * fallbackWords.length)];
   }
 
-  // ✅ Récupérer des mots par longueur via proxy - CORRIGÉ AVEC VALIDATION
+  // ✅ AMÉLIORATION - Récupérer des mots par longueur via proxy
   getWordsByLength(length: number, difficulty: string = 'difficile', maxResults: number = 20): Observable<string[]> {
-    return this.http.get<any>(`${this.apiUrl}/longueur/${length}`).pipe(
+    // ✅ CORRECTION - Utiliser la vraie URL de l'API trouve-mot.fr
+    const apiUrl = `${this.apiUrl}/size/${length}/${maxResults}`;
+    console.log(`💀 CORRECTION - Appel API trouve-mot.fr: ${apiUrl}`);
+    
+    return this.http.get<any>(apiUrl).pipe(
       timeout(5000),
       map(response => {
-        console.log('🎯 Mots par longueur via proxy:', response);
+        console.log(`🎯 Réponse API trouve-mot.fr pour ${length} lettres:`, response);
+        
+        let words: string[] = [];
+        
+        if (Array.isArray(response)) {
+          console.log(`📊 API a retourné ${response.length} mots`);
+          
+          words = response
+            .map(item => {
+              let word = '';
+              if (typeof item === 'string') {
+                word = item;
+              } else if (item && item.name) {
+                word = item.name;
+              }
+              
+              const cleanWord = this.cleanAndValidateWord(word);
+              console.log(`🧹 Mot API: "${word}" -> "${cleanWord}" (${cleanWord.length}L)`);
+              return cleanWord;
+            })
+            .filter(word => {
+              const isValidLength = word && word.length === length;
+              if (!isValidLength) {
+                console.warn(`⚠️ Mot "${word}" (${word.length}L) rejeté pour longueur ${length}L`);
+              }
+              return isValidLength;
+            });
+            
+          console.log(`✅ Mots API valides après filtrage: ${words.length}`, words);
+        }
+        
+        // ✅ AMÉLIORATION SPÉCIALE - Pour cauchemar, compléter avec mots locaux si nécessaire
+        if (difficulty === 'cauchemar') {
+          console.log(`💀 Mode cauchemar - mots API: ${words.length}`);
+          
+          if (words.length < 5) {
+            console.log(`💀 Pas assez de mots API (${words.length}), ajout mots locaux...`);
+            
+            const localLongWords = this.hardWords.filter(word => 
+              word.length === length && 
+              word.length >= 6 && 
+              word.length <= 12
+            );
+            
+            console.log(`💀 Mots locaux trouvés pour ${length} lettres:`, localLongWords.length);
+            words = [...words, ...localLongWords];
+          }
+        } else if (words.length < maxResults) {
+          // Pour autres difficultés, compléter avec mots locaux
+          const localWords = this.hardWords.filter(word => word.length === length);
+          words = [...words, ...localWords];
+        }
+        
+        console.log(`✅ FINAL - ${words.length} mots de ${length} lettres récupérés (${difficulty})`);
+        const shuffled = this.shuffleArray(words).slice(0, maxResults);
+        console.log(`🎲 Mots sélectionnés:`, shuffled.slice(0, 3), '...');
+        return shuffled;
+      }),
+      catchError((error) => {
+        console.error(`❌ Erreur API trouve-mot.fr pour ${length} lettres:`, error);
+        
+        // ✅ Fallback intelligent selon la difficulté
+        let localWords: string[];
+        if (difficulty === 'cauchemar') {
+          localWords = this.hardWords.filter(word => 
+            word.length === length && 
+            word.length >= 6 && 
+            word.length <= 12
+          );
+          
+          if (localWords.length < 5) {
+            localWords = this.hardWords.filter(word => word.length >= 6 && word.length <= 12);
+            console.log(`💀 Fallback étendu cauchemar: ${localWords.length} mots (6-12 lettres)`);
+          }
+        } else {
+          localWords = this.hardWords.filter(word => word.length === length);
+        }
+        
+        console.log(`🔄 Utilisation fallback local: ${localWords.length} mots`);
+        return of(this.shuffleArray(localWords).slice(0, maxResults));
+      })
+    );
+  }
+
+  // ✅ NOUVEAU - Méthode spéciale pour cauchemar avec sizemin (minimum 6 lettres)
+  getWordsForCauchemar(minLength: number = 6, maxResults: number = 30): Observable<string[]> {
+    const apiUrl = `${this.apiUrl}/sizemin/${minLength}/${maxResults}`;
+    console.log(`💀 Tentative API cauchemar: ${apiUrl}`);
+    
+    return this.http.get<any>(apiUrl).pipe(
+      timeout(5000),
+      map(response => {
+        console.log(`💀 Réponse API sizemin OK: ${response?.length || 0} mots`);
         
         let words: string[] = [];
         
@@ -128,25 +224,33 @@ export class TrouveMotService {
                 word = item.name;
               }
               
-              // ✅ Nettoyer et valider chaque mot
               return this.cleanAndValidateWord(word);
             })
-            .filter(word => word && word.length === length); // ✅ Filtrer par longueur exacte
+            .filter(word => 
+              word && 
+              word.length >= 6 && 
+              word.length <= 12
+            );
         }
         
-        // ✅ Si pas assez de mots, compléter avec des mots locaux
-        if (words.length < maxResults) {
-          const localWords = this.hardWords.filter(word => word.length === length);
-          words = [...words, ...localWords].slice(0, maxResults);
+        // Compléter avec mots locaux si nécessaire
+        if (words.length < 10) {
+          const localLongWords = this.hardWords.filter(word => 
+            word.length >= 6 && word.length <= 12
+          );
+          words = [...words, ...localLongWords];
         }
         
-        console.log(`✅ ${words.length} mots de ${length} lettres récupérés`);
+        console.log(`💀 Total mots cauchemar: ${words.length} (6-12L)`);
         return this.shuffleArray(words).slice(0, maxResults);
       }),
       catchError((error) => {
-        console.error('❌ Erreur mots par longueur, fallback local:', error);
-        // Fallback complet vers mots locaux
-        const localWords = this.hardWords.filter(word => word.length === length);
+        console.log(`💀 API indisponible, utilisation mots locaux (${this.hardWords.filter(w => w.length >= 6 && w.length <= 12).length} mots)`);
+        
+        // Fallback sur mots locaux longs
+        const localWords = this.hardWords.filter(word => 
+          word.length >= 6 && word.length <= 12
+        );
         return of(this.shuffleArray(localWords).slice(0, maxResults));
       })
     );
@@ -184,13 +288,54 @@ export class TrouveMotService {
     'ULEMA', 'VORTEX', 'WHISKY', 'XENON', 'YACHT', 'ZINZIN', 'AZOTE', 'BUXUS', 'CYCAD', 'DRUZE',
     'FUZZY', 'GEYSER', 'HAPAX', 'IAMBE', 'JULEP', 'KYSTE', 'LATEX', 'MUZAK', 'NIXES', 'OPIUM',
     
-    // 6 lettres
+    // ✅ AJOUT MASSIF - 6 lettres pour cauchemar
+    'ABAQUE', 'ABSOLU', 'ABSENT', 'ABSOUS', 'ABYSME', 'ACACIA', 'ACCRUE', 'ACHEVE', 'ACIDUS', 'ACIERU',
+    'ACTION', 'ADAGIO', 'ADAPTE', 'ADBUCE', 'ADHERE', 'ADJURE', 'ADMIRE', 'ADOPTE', 'ADROIT', 'ADULTE',
+    'AERAGE', 'AERIEN', 'AFFAME', 'AFFINE', 'AFGANI', 'AGRAFE', 'AGRUME', 'AHURIE', 'AIGREUR', 'AILIER',
     'AZIMUT', 'BENZOL', 'COGNAC', 'DJEBEL', 'EXQUIS', 'FJORDS', 'GEYSER', 'HIJABS', 'ICONES', 'JOVIAL',
     'KLAXON', 'LUXURE', 'MYTHES', 'NAPALM', 'OXYDES', 'PIXELS', 'QUARTZ', 'RYTHME', 'TOXINE', 'UKASES',
+    'VELOUR', 'WHISKY', 'XYLENE', 'YUCQUE', 'ZEPHYR', 'ZOMBIE', 'ZOUTER', 'ZYGOTE', 'ZYMASE', 'ZYXEUX',
     
-    // 7 lettres
+    // ✅ AJOUT MASSIF - 7 lettres pour cauchemar
+    'ABYSSES', 'ACCORDE', 'ACHETER', 'ACQUISE', 'ACTIVER', 'ADAPTER', 'ADHERER', 'ADJOINT', 'ADMIRER', 'ADOPTER',
+    'AEROBIC', 'AEROSOL', 'AFFAIRE', 'AFFICHE', 'AFFREUX', 'AGENCER', 'AGRIPPE', 'AHURICH', 'AJOURNER', 'ALARMER',
     'AZIMUTS', 'BENZOLS', 'CYCLONE', 'DJEBELS', 'EXQUISE', 'GEYSERS', 'HYPOXIE', 'ISOTOPE', 'JAZZMEN',
-    'KLAXONS', 'MYXOMES', 'NAPALMS', 'OXYURES', 'PYXIDES', 'QUETZAL', 'RYTHMES', 'TOXINES'
+    'KLAXONS', 'MYXOMES', 'NAPALMS', 'OXYURES', 'PYXIDES', 'QUETZAL', 'RYTHMES', 'TOXINES', 'VAMPIRE',
+    'WHISKEY', 'XYLENES', 'YACHTING', 'ZEALOTE', 'ZIEUTER', 'ZONAGES', 'ZONARDS', 'ZOZOTER', 'ZYGOMAS',
+    
+    // ✅ AJOUT MASSIF - 8 lettres pour cauchemar
+    'ABATTOIR', 'ABONNERA', 'ABORDAGE', 'ABSTRACT', 'ABSURDE', 'ACCIDENT', 'ACCORDER', 'ACHETEUR', 'ACIDULER', 'ACQUIERT',
+    'ACTIVERA', 'ADAPTEUR', 'ADHERENT', 'ADJUGER', 'ADMIRERA', 'ADOPTIVE', 'AERIENNE', 'AFFICHER', 'AFFRONTE', 'AGENCEUR',
+    'ABSINTHE', 'BYZANTINE', 'COMPLEXE', 'DYNAMITE', 'EXORCISE', 'FREQUENCE', 'GLYOXYLE', 'HYPNOTIC',
+    'ISOCLINE', 'JACINTHE', 'KRYPTONE', 'LUXUEUX', 'MAXIMUM', 'NOCTULE', 'OXIDANT', 'PHYLUMS',
+    'QUETZALS', 'RHYTHMES', 'SYNODAL', 'TOXIQUE', 'URANIUM', 'VORTICES', 'WHISKEYS', 'XANTHINE',
+    'YACHTING', 'ZYGOMAS', 'ZYMOTIQUE', 'ZYTHUME',
+    
+    // ✅ AJOUT MASSIF - 9 lettres pour cauchemar
+    'ABANDONNER', 'ABBREVIER', 'ABDICQUER', 'ABDUCTION', 'ABERRATION', 'ABOLITION', 'ABONDANCE', 'ABONNEMENT', 'ABORDABLE', 'ABOUTIQUE',
+    'ABREUVOIR', 'ABRICOTIER', 'ABSCONDIT', 'ABSOLUTISME', 'ABSTINENCE', 'ACCABLEMENT', 'ACCELERER', 'ACCENTUER', 'ACCEPTEUR', 'ACCESSOIRE',
+    'ASYMETRIE', 'BYZANTINE', 'COMPLEXES', 'EXCENTRIQUE', 'FREQUENCY', 'GLYCERINE', 'HYPNOTIZE',
+    'IZQUIERDA', 'JUXTAPOSE', 'KRYOLITE', 'LUXURIEUX', 'MYSTERIUM', 'NEOLATINE', 'OXYMORRON',
+    'PARADOXAL', 'QUIPROQUO', 'RHAPSODIC', 'SYNCHRONE', 'TECHNIQUE', 'UNANIMITE', 'VERTICALE',
+    'WHIRLPOOL', 'XYLOPHONE', 'YACKETING', 'ZEALOTISM', 'ZYMOLOGIE',
+    
+    // ✅ AJOUT MASSIF - 10 lettres pour cauchemar
+    'ABANDONNEE', 'ABBREVIATION', 'ABDICATION', 'ABERRANTES', 'ABOLITISME', 'ABONDANTES', 'ABONNEMENTS', 'ABORDABLES', 'ABREVIATEUR', 'ABRICOTIERS',
+    'ABREVIATION', 'BIOCHEMIQUE', 'CRYPTOGRAMME', 'EXORBITANTE', 'GYNAECOLOGIE', 'HYPERTROPHIE',
+    'LEXICOGRAPHE', 'PSYCHOLOGIE', 'SYNCHRONISME', 'XYLOGRAPHIE', 'ZOOTECHNIE', 'ZYGOMORPHE',
+    
+    // ✅ AJOUT MASSIF - 11 lettres pour cauchemar
+    'ABANDONNANT', 'ABDICATIONS', 'ABERRATIONS', 'ABOLITIONS', 'ABONDAMMENT', 'ABONNEMENTS', 'ABREVIATIONS', 'ABRICOTIERS',
+    'ACCELERATION', 'ACCENTUATION', 'ACCEPTATION', 'ACCESSOIRES', 'ACCLAMATION', 'ACCLIMATENT', 'ACCOMPAGNER', 'ACCORDEMENT',
+    'BIOCHIMIQUE', 'CRYPTOGRAMMES', 'EXORBITANTES', 'GYNAECOLOGIES', 'HYPERTROPHIES', 'LEXICOGRAPHES',
+    'PSYCHOLOGIES', 'SYNCHRONISMES', 'XYLOGRAPHIES', 'ZIRCALLOYES', 'ZOANTHAIRES',
+    
+    // ✅ AJOUT MASSIF - 12 lettres pour cauchemar
+    'ABANDONNATES', 'ABDICATIONS', 'ABERRATIONS', 'ABOLITIONS', 'ABONNEMENTS', 'ABREVIATIONS', 'ABRICOTIERS',
+    'ACCELERATIONS', 'ACCENTUATIONS', 'ACCEPTATIONS', 'ACCESSOIRES', 'ACCLAMATIONS', 'ACCLIMATENT', 'ACCOMPAGNENT', 'ACCORDEMENTS',
+    'ACCOMPLISSEMENT', 'ACCOUCHEMENTS', 'ACCOUTUMANCES', 'ACCREDITATIONS', 'ACCROISSEMENT', 'ACCULTURATION', 'ACCUMULATIONS', 'ACCUSATIONS',
+    'BIOCHIMIQUES', 'CRYPTOGRAMMES', 'EXORBITANTES', 'GYNAECOLOGIES', 'HYPERTROPHIES', 'LEXICOGRAPHES',
+    'PSYCHOLOGIES', 'SYNCHRONISMES', 'XYLOGRAPHIES', 'ZIRCONIUMATE', 'ZOANTHROPIES'
   ];
 
   private shuffleArray<T>(array: T[]): T[] {

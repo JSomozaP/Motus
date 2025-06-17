@@ -1,18 +1,14 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { GameGridComponent } from './components/game-grid/game-grid.component';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, GameGridComponent], // ✅ RouterOutlet retiré car non utilisé
-  template: `
-    <div class="app-container">
-      <app-game-grid></app-game-grid>
-    </div>
-  `,
+  imports: [CommonModule, RouterOutlet], // ✅ RETIRER GameGridComponent d'ici
+  templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent {
-  title = 'Motus';
+  title = 'motus-client';
 }

@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 // Import des routes
 import authRoutes from './routes/authRoutes.js';
 import gameRoutes from './routes/gameRoutes.js';
+import proxyRoutes from './routes/proxyRoutes.js';  // ✅ Import des routes proxy
 
 // Configuration des variables d'environnement
 dotenv.config();
@@ -19,18 +20,27 @@ app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// Configuration CORS
+// ✅ Configuration CORS
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:4201',
+    origin: [
+        'http://localhost:4201',
+        'http://127.0.0.1:4201',
+        'http://localhost:4200',
+        'http://127.0.0.1:4200',
+        process.env.FRONTEND_URL || 'http://localhost:4201'
+    ],
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Middleware pour preflight requests
+app.options('*', cors());
 
 // Rate limiting global
 const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 100 requêtes par IP par fenêtre
+    windowMs: 15 * 60 * 1000,
+    max: 100,
     message: {
         message: 'Trop de requêtes depuis cette IP, réessayez plus tard.'
     }
@@ -41,11 +51,14 @@ app.use(globalLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Routes
+// ✅ Routes proxy PUBLIQUES (SANS authentification)
+app.use('/api/proxy', proxyRoutes);
+
+// Routes avec authentification
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
 
-// Route de test simple (conservée)
+// Route de test simple
 app.get('/test', (req, res) => {
     res.json({ message: "Le serveur fonctionne !" });
 });
@@ -59,9 +72,6 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Test de la connexion à la base de données
-console.log('Connexion à la base de données établie');
-
 // Middleware de gestion d'erreurs global
 app.use((err, req, res, next) => {
     console.error('Erreur non gérée:', err);
@@ -73,14 +83,16 @@ app.use((err, req, res, next) => {
 
 // Gestion des routes non trouvées
 app.use('*', (req, res) => {
-    res.status(404).json({ message: 'Route non trouvée' });
+    console.log('❌ Route non trouvée:', req.originalUrl);
+    res.status(404).json({ message: 'Route non trouvée', url: req.originalUrl });
 });
 
 // Démarrage du serveur
 app.listen(PORT, () => {
     console.log(`🚀 Serveur démarré sur le port ${PORT}`);
     console.log(`📊 Environnement: ${process.env.NODE_ENV}`);
-    console.log(`🌐 CORS autorisé pour: ${process.env.FRONTEND_URL}`);
+    console.log(`🌐 CORS autorisé pour: http://localhost:4201, http://localhost:4200`);
+    console.log(`🔧 Routes proxy disponibles: /api/proxy/*`);
 });
 
 export default app;

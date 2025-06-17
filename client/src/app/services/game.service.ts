@@ -78,25 +78,31 @@ export class GameService {
   private usedWords = new Set<string>();
   private maxUsedWords = 500;
   
-  // ✅ Cache pour les mots du mode hard
+  // ✅ Cache pour les mots du mode hard (ancien système GitHub)
   private hardModeWords: string[] = [];
   private hardModeLoaded = false;
   private hardModeUsedWords = new Set<string>();
   private maxHardModeWords = 1000;
+
+  // ✅ Nouvelle liste pour le mode cauchemar depuis mots.json
+  private cauchemarWords: string[] = [];
+  private cauchemarWordsLoaded = false;
+  private cauchemarUsedWords = new Set<string>();
+  private maxCauchemarWords = 2000;
   
   // ✅ Mode hybride activé automatiquement si le serveur ne répond pas
   private offlineMode = false;
   private developmentMode = true;
   private currentTargetWord = '';
 
-  // ✅ Sources avec le mode hard GitHub
+  // ✅ Sources avec le mode cauchemar local
   private wordSources: WordSource[] = [
     {
-      name: 'github-hard',
-      getWord: () => this.getWordFromGitHubHardMode(),
+      name: 'cauchemar-local',
+      getWord: () => this.getWordFromCauchemarList(),
       priority: 1,
       enabled: false,
-      difficulty: 'difficile'
+      difficulty: 'cauchemar'
     },
     {
       name: 'local-premium',
@@ -194,10 +200,97 @@ export class GameService {
     private router: Router,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
-    console.log('🇫🇷 GameService initialisé avec listes françaises locales + GitHub Hard Mode');
+    console.log('🇫🇷 GameService initialisé avec listes françaises locales + Mode CAUCHEMAR');
   }
 
-  // ✅ Charger les mots du mode hard depuis GitHub
+  // ✅ Charger les mots depuis mots.json pour le mode cauchemar
+  private loadCauchemarWords(): Observable<string[]> {
+    if (this.cauchemarWordsLoaded && this.cauchemarWords.length > 0) {
+      console.log(`🎯 Mots cauchemar déjà chargés: ${this.cauchemarWords.length} mots`);
+      return of(this.cauchemarWords);
+    }
+
+    console.log('💀 Chargement des mots cauchemar depuis mots.json...');
+    
+    return this.http.get<string[]>('assets/mots.json').pipe(
+      map(words => {
+        console.log(`📡 Mots bruts reçus: ${words.length}`);
+        
+        // ✅ Filtrer les mots pour le mode cauchemar
+        const filteredWords = words
+          .filter(word => {
+            if (!word || typeof word !== 'string') return false;
+            
+            const cleanWord = word.toUpperCase().trim();
+            
+            // Critères pour les mots cauchemar (plus difficiles)
+            return (
+              cleanWord.length >= 6 && cleanWord.length <= 12 && // Mots plus longs
+              /^[A-ZÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ-]+$/.test(cleanWord) && // Lettres françaises + tirets
+              !cleanWord.includes(' ') && // Pas d'espaces
+              !/^\d/.test(cleanWord) && // Pas de mots commençant par un chiffre
+              cleanWord.length > 5 // Mots complexes uniquement
+            );
+          })
+          .map(word => {
+            // Nettoyer les accents pour le jeu
+            return word.toUpperCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .trim();
+          })
+          .filter((word, index, arr) => arr.indexOf(word) === index) // Supprimer les doublons
+          .sort();
+
+        console.log(`✅ Mots filtrés pour le mode cauchemar: ${filteredWords.length}`);
+        
+        this.cauchemarWords = filteredWords;
+        this.cauchemarWordsLoaded = true;
+        
+        return filteredWords;
+      }),
+      catchError(err => {
+        console.error('❌ Erreur lors du chargement des mots cauchemar:', err);
+        
+        // Fallback vers une liste réduite intégrée
+        const fallbackWords = this.getFallbackHardWords(); // Réutiliser l'ancienne méthode
+        console.log(`🛡️ Utilisation du fallback cauchemar: ${fallbackWords.length} mots`);
+        
+        this.cauchemarWords = fallbackWords;
+        this.cauchemarWordsLoaded = true;
+        
+        return of(fallbackWords);
+      })
+    );
+  }
+
+  // ✅ Obtenir un mot du mode cauchemar
+  private getWordFromCauchemarList(): Observable<string> {
+    return this.loadCauchemarWords().pipe(
+      switchMap(words => {
+        const availableWords = words.filter(word => !this.cauchemarUsedWords.has(word));
+        
+        if (availableWords.length === 0) {
+          console.log('🔄 Tous les mots cauchemar utilisés, réinitialisation...');
+          this.cauchemarUsedWords.clear();
+          return this.getWordFromCauchemarList();
+        }
+
+        // ✅ Favoriser les mots très longs pour le cauchemar
+        const veryHardWords = availableWords.filter(word => word.length >= 8);
+        const wordsToChooseFrom = veryHardWords.length > 0 ? veryHardWords : availableWords;
+        
+        const randomWord = wordsToChooseFrom[Math.floor(Math.random() * wordsToChooseFrom.length)];
+        this.cauchemarUsedWords.add(randomWord);
+        
+        console.log(`💀 Mot CAUCHEMAR sélectionné: ${randomWord} (${randomWord.length} lettres)`);
+        
+        return of(randomWord);
+      })
+    );
+  }
+
+  // ✅ Charger les mots du mode hard depuis GitHub (ancien système)
   private loadHardModeWords(): Observable<string[]> {
     if (this.hardModeLoaded && this.hardModeWords.length > 0) {
       console.log(`🎯 Mots hard mode déjà chargés: ${this.hardModeWords.length} mots`);
@@ -333,7 +426,7 @@ export class GameService {
     ];
   }
 
-  // ✅ Obtenir un mot du mode hard GitHub
+  // ✅ Obtenir un mot du mode hard GitHub (ancien système)
   private getWordFromGitHubHardMode(): Observable<string> {
     return this.loadHardModeWords().pipe(
       switchMap(words => {
@@ -393,6 +486,7 @@ export class GameService {
     // Activer les sources selon la difficulté
     const enabledSources = this.wordSources
       .filter(source => {
+        if (difficulty === 'cauchemar' && source.difficulty === 'cauchemar') return true;
         if (difficulty === 'difficile' && source.difficulty === 'difficile') return true;
         if (difficulty === 'moyen' && (source.difficulty === 'moyen' || source.difficulty === 'facile')) return true;
         if (difficulty === 'facile' && source.difficulty === 'facile') return true;
@@ -572,18 +666,25 @@ export class GameService {
     return new HttpHeaders().set('Authorization', `Bearer ${token}`);
   }
 
-  // ✅ Méthode principale avec support de difficulté
+  // ✅ Méthode principale avec support de difficulté - CORRIGÉE
   getRandomWord(difficulty: string = 'facile'): Observable<GameResponse> {
     // Réinitialiser si trop de mots utilisés
-    const maxWords = difficulty === 'difficile' ? this.maxHardModeWords : this.maxUsedWords;
-    const usedWordsSet = difficulty === 'difficile' ? this.hardModeUsedWords : this.usedWords;
+    let maxWords: number;
+    let usedWordsSet: Set<string>;
+    
+    if (difficulty === 'cauchemar') {
+      maxWords = this.maxCauchemarWords;
+      usedWordsSet = this.cauchemarUsedWords;
+    } else if (difficulty === 'difficile') {
+      maxWords = this.maxHardModeWords;
+      usedWordsSet = this.hardModeUsedWords;
+    } else {
+      maxWords = this.maxUsedWords;
+      usedWordsSet = this.usedWords;
+    }
     
     if (usedWordsSet.size >= maxWords) {
-      if (difficulty === 'difficile') {
-        this.hardModeUsedWords.clear();
-      } else {
-        this.resetUsedWords();
-      }
+      usedWordsSet.clear();
     }
 
     console.log(`🎯 Recherche d'un nouveau mot ${difficulty} (${usedWordsSet.size}/${maxWords} utilisés)`);
@@ -640,28 +741,33 @@ export class GameService {
     );
   }
 
-  // ✅ Nouvelles méthodes publiques pour gérer les difficultés
+  // ✅ Activer le mode cauchemar avec mots.json
   enableHardMode() {
-    this.wordSources.find(s => s.name === 'github-hard')!.enabled = true;
-    console.log('🔥 Mode hard activé ! Chargement des mots complexes...');
+    // Désactiver l'ancien système GitHub
+    const githubSource = this.wordSources.find(s => s.name === 'github-hard');
+    if (githubSource) githubSource.enabled = false;
+    
+    // Activer le nouveau système cauchemar
+    this.wordSources.find(s => s.name === 'cauchemar-local')!.enabled = true;
+    console.log('💀 Mode CAUCHEMAR activé ! Chargement des mots depuis mots.json...');
     
     // Précharger les mots en arrière-plan
-    this.loadHardModeWords().subscribe({
-      next: (words) => console.log(`🎯 ${words.length} mots hard mode prêts !`),
-      error: (err) => console.error('❌ Erreur préchargement hard mode:', err)
+    this.loadCauchemarWords().subscribe({
+      next: (words) => console.log(`🎯 ${words.length} mots cauchemar prêts !`),
+      error: (err) => console.error('❌ Erreur préchargement cauchemar:', err)
     });
   }
 
   disableHardMode() {
-    this.wordSources.find(s => s.name === 'github-hard')!.enabled = false;
-    console.log('🔥 Mode hard désactivé');
+    this.wordSources.find(s => s.name === 'cauchemar-local')!.enabled = false;
+    console.log('💀 Mode cauchemar désactivé');
   }
 
   isHardModeEnabled(): boolean {
-    return this.wordSources.find(s => s.name === 'github-hard')?.enabled || false;
+    return this.wordSources.find(s => s.name === 'cauchemar-local')?.enabled || false;
   }
 
-  // ✅ Statistiques étendues avec hard mode - TYPE CORRIGÉ
+  // ✅ Statistiques étendues avec mode cauchemar
   getUsedWordsStats(): WordStats {
     const basicStats: WordStats = {
       used: this.usedWords.size,
@@ -672,14 +778,14 @@ export class GameService {
       totalWords: this.premiumWords.length + this.securityWords.length
     };
 
-    // ✅ Ajouter les stats du hard mode si disponibles
-    if (this.hardModeLoaded && this.hardModeWords.length > 0) {
+    // ✅ Ajouter les stats du mode cauchemar si disponibles
+    if (this.cauchemarWordsLoaded && this.cauchemarWords.length > 0) {
       basicStats.hardMode = {
-        used: this.hardModeUsedWords.size,
-        max: this.maxHardModeWords,
-        percentage: Math.round((this.hardModeUsedWords.size / this.maxHardModeWords) * 100),
-        available: this.hardModeWords.filter(w => !this.hardModeUsedWords.has(w)).length,
-        total: this.hardModeWords.length,
+        used: this.cauchemarUsedWords.size,
+        max: this.maxCauchemarWords,
+        percentage: Math.round((this.cauchemarUsedWords.size / this.maxCauchemarWords) * 100),
+        available: this.cauchemarWords.filter(w => !this.cauchemarUsedWords.has(w)).length,
+        total: this.cauchemarWords.length,
         enabled: this.isHardModeEnabled()
       };
     }
@@ -712,6 +818,7 @@ export class GameService {
 
   private getSourceDescription(sourceName: string): string {
     switch (sourceName) {
+      case 'cauchemar-local': return `Mode CAUCHEMAR mots.json (${this.cauchemarWords.length} mots complexes)`;
       case 'github-hard': return `Mode HARD GitHub (${this.hardModeWords.length} mots complexes)`;
       case 'local-premium': return `Mots français premium (${this.premiumWords.length} mots)`;
       case 'local-security': return `Liste de sécurité (${this.securityWords.length} mots)`;
@@ -719,42 +826,73 @@ export class GameService {
     }
   }
 
-  // ✅ Obtenir des mots par difficulté pour preview
+  // ✅ Obtenir des mots par difficulté pour preview - CORRIGÉE
   getWordsByDifficulty(difficulty: string, count: number = 5): Observable<string[]> {
     const samples: string[] = [];
     
-    if (difficulty === 'difficile') {
-      return this.loadHardModeWords().pipe(
+    if (difficulty === 'cauchemar') {
+      return this.loadCauchemarWords().pipe(
         map(words => {
+          const result: string[] = [];
           for (let i = 0; i < count && i < words.length; i++) {
             const randomWord = words[Math.floor(Math.random() * words.length)];
-            if (!samples.includes(randomWord)) {
-              samples.push(randomWord);
+            if (!result.includes(randomWord)) {
+              result.push(randomWord);
             }
           }
-          return samples;
+          return result;
+        })
+      );
+    } else if (difficulty === 'difficile') {
+      return this.loadHardModeWords().pipe(
+        map(words => {
+          const result: string[] = [];
+          for (let i = 0; i < count && i < words.length; i++) {
+            const randomWord = words[Math.floor(Math.random() * words.length)];
+            if (!result.includes(randomWord)) {
+              result.push(randomWord);
+            }
+          }
+          return result;
         })
       );
     } else if (difficulty === 'moyen') {
+      const result: string[] = [];
       for (let i = 0; i < count; i++) {
         const randomWord = this.premiumWords[Math.floor(Math.random() * this.premiumWords.length)];
-        if (!samples.includes(randomWord)) {
-          samples.push(randomWord);
+        if (!result.includes(randomWord)) {
+          result.push(randomWord);
         }
       }
+      return of(result);
     } else {
+      const result: string[] = [];
       for (let i = 0; i < count; i++) {
         const randomWord = this.securityWords[Math.floor(Math.random() * this.securityWords.length)];
-        if (!samples.includes(randomWord)) {
-          samples.push(randomWord);
+        if (!result.includes(randomWord)) {
+          result.push(randomWord);
         }
       }
+      return of(result);
     }
-    
-    return of(samples);
   }
 
-  // ✅ Méthode pour tester le hard mode
+  // ✅ Méthode pour tester le mode cauchemar
+  testCauchemarMode(): Observable<string[]> {
+    return this.loadCauchemarWords().pipe(
+      map(words => {
+        const samples = [];
+        for (let i = 0; i < 10 && i < words.length; i++) {
+          const randomIndex = Math.floor(Math.random() * words.length);
+          samples.push(words[randomIndex]);
+        }
+        console.log('💀 Échantillon de mots cauchemar:', samples);
+        return samples;
+      })
+    );
+  }
+
+  // ✅ Méthode pour tester le hard mode (ancien système)
   testHardMode(): Observable<string[]> {
     return this.loadHardModeWords().pipe(
       map(words => {
@@ -771,7 +909,7 @@ export class GameService {
 
   // ✅ Méthode de débogage CORRIGÉE avec vérification sécurisée
   debugWordSources() {
-    console.log('=== 🔍 État des sources de mots LOCALES + HARD MODE ===');
+    console.log('=== 🔍 État des sources de mots LOCALES + MODE CAUCHEMAR ===');
     this.wordSources.forEach(source => {
       console.log(`${source.name}: ${source.enabled ? '✅' : '❌'} (priorité: ${source.priority}, difficulté: ${source.difficulty}) - ${this.getSourceDescription(source.name)}`);
     });
@@ -783,9 +921,9 @@ export class GameService {
     
     // ✅ Vérification sécurisée avec optional chaining
     if (stats.hardMode) {
-      console.log(`🔥 Hard mode disponibles: ${stats.hardMode.available}/${stats.hardMode.total} (${stats.hardMode.enabled ? 'ACTIVÉ' : 'DÉSACTIVÉ'})`);
+      console.log(`💀 Mode cauchemar disponibles: ${stats.hardMode.available}/${stats.hardMode.total} (${stats.hardMode.enabled ? 'ACTIVÉ' : 'DÉSACTIVÉ'})`);
     } else {
-      console.log(`🔥 Hard mode: ${this.hardModeLoaded ? 'Chargé mais stats non disponibles' : 'Non chargé'} (${this.isHardModeEnabled() ? 'ACTIVÉ' : 'DÉSACTIVÉ'})`);
+      console.log(`💀 Mode cauchemar: ${this.cauchemarWordsLoaded ? 'Chargé mais stats non disponibles' : 'Non chargé'} (${this.isHardModeEnabled() ? 'ACTIVÉ' : 'DÉSACTIVÉ'})`);
     }
     
     console.log('=====================================');
@@ -795,6 +933,7 @@ export class GameService {
   forceResetUsedWords() {
     this.resetUsedWords();
     this.hardModeUsedWords.clear();
+    this.cauchemarUsedWords.clear();
     console.log('🔄 Réinitialisation forcée de tous les mots utilisés');
   }
 

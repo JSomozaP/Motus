@@ -1,13 +1,10 @@
 import express from 'express';
 import axios from 'axios';
-import { getRandomWord, checkWord, getLeaderboard } from '../controllers/gameController.js';
-import { authenticateToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// ✅ Routes proxy PUBLIQUES (AVANT l'authentification)
-// Proxy pour test de connexion
-router.get('/proxy/trouve-mot/test', async (req, res) => {
+// ✅ Route de test de connexion (SANS authentification)
+router.get('/trouve-mot/test', async (req, res) => {
   try {
     console.log('🔗 Test connexion API trouve-mot.fr...');
     
@@ -36,8 +33,8 @@ router.get('/proxy/trouve-mot/test', async (req, res) => {
   }
 });
 
-// Proxy pour mot aléatoire
-router.get('/proxy/trouve-mot/random', async (req, res) => {
+// ✅ Route pour mot aléatoire (SANS authentification)
+router.get('/trouve-mot/random', async (req, res) => {
   try {
     console.log('🔥 Appel API trouve-mot.fr via proxy...');
     
@@ -55,10 +52,10 @@ router.get('/proxy/trouve-mot/random', async (req, res) => {
   } catch (error) {
     console.error('❌ Erreur API trouve-mot:', error.message);
     
-    // Fallback avec un mot difficile local
+    // Fallback avec mots difficiles locaux
     const hardWords = [
       'AZYME', 'FJORD', 'SPHINX', 'TOXIN', 'XENON', 'QUARK', 'DJINN', 'EPOXY',
-      'GEYSER', 'WHISKY', 'ZYGOTE', 'KLAXON', 'MYTHE', 'NEXUS', 'OZONE'
+      'GEYSER', 'WHISKY', 'ZYGOTE', 'KLAXON', 'MYTHE', 'NEXUS', 'OZONE', 'KRILL'
     ];
     
     const randomWord = hardWords[Math.floor(Math.random() * hardWords.length)];
@@ -71,48 +68,13 @@ router.get('/proxy/trouve-mot/random', async (req, res) => {
   }
 });
 
-// Proxy pour mots par longueur
-router.get('/proxy/trouve-mot/longueur/:length', async (req, res) => {
+// ✅ Route pour mots par longueur (SANS authentification)
+router.get('/trouve-mot/longueur/:length', async (req, res) => {
   try {
     const { length } = req.params;
     console.log(`🔥 Recherche mots de ${length} lettres via proxy...`);
     
-    // Essayer différents endpoints de l'API trouve-mot
-    const endpoints = [
-      `https://trouve-mot.fr/api/size/${length}/1`,
-      `https://trouve-mot.fr/api/longueur/${length}`,
-      `https://trouve-mot.fr/api/length/${length}`
-    ];
-    
-    let response = null;
-    for (const endpoint of endpoints) {
-      try {
-        response = await axios.get(endpoint, {
-          timeout: 5000,
-          headers: {
-            'User-Agent': 'Motus-Game/1.0',
-            'Accept': 'application/json'
-          }
-        });
-        console.log(`✅ Endpoint fonctionnel: ${endpoint}`);
-        break;
-      } catch (endpointError) {
-        console.warn(`⚠️ Endpoint échoué: ${endpoint}`);
-        continue;
-      }
-    }
-    
-    if (response) {
-      console.log('✅ Mots reçus:', response.data?.length || 'unknown');
-      res.json(response.data);
-    } else {
-      throw new Error('Tous les endpoints ont échoué');
-    }
-    
-  } catch (error) {
-    console.error('❌ Erreur API trouve-mot longueur:', error.message);
-    
-    // Fallback avec mots locaux par longueur
+    // Fallback direct avec mots locaux (API trouve-mot souvent instable)
     const hardWordsByLength = {
       3: ['AXE', 'GYM', 'HIE', 'OXY', 'QUI', 'RYE', 'VEX', 'ZUT'],
       4: ['CZAR', 'EXAM', 'JAZZ', 'LYNX', 'ONYX', 'PRIX', 'SEXY', 'UNIX'],
@@ -121,22 +83,18 @@ router.get('/proxy/trouve-mot/longueur/:length', async (req, res) => {
       7: ['AZIMUTS', 'CYCLONE', 'QUETZAL', 'RYTHMES', 'TOXINES']
     };
     
-    const words = hardWordsByLength[req.params.length] || hardWordsByLength[5];
+    const words = hardWordsByLength[length] || hardWordsByLength[5];
     
     res.json(words.map(word => ({ 
       name: word,
       source: 'local-fallback',
       difficulty: 'difficile'
     })));
+    
+  } catch (error) {
+    console.error('❌ Erreur proxy longueur:', error.message);
+    res.status(500).json({ error: 'Erreur serveur proxy' });
   }
 });
-
-// ✅ À PARTIR D'ICI : Toutes les routes nécessitent une authentification
-router.use(authenticateToken);
-
-// Routes protégées existantes
-router.get('/word', getRandomWord);
-router.post('/check', checkWord);
-router.get('/leaderboard', getLeaderboard);
 
 export default router;

@@ -209,6 +209,71 @@
     <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
   </div>
 
+  <!-- ✅ Section de difficulté repositionnée avant la grille -->
+  <div class="difficulty-section">
+    <h3>🎯 Niveau de difficulté</h3>
+    
+    <div class="difficulty-current">
+      <span>Actuel: {{ getDifficultyLabel() }}</span>
+      <button class="btn btn-outline" (click)="showDifficultySelector = !showDifficultySelector">
+        {{ showDifficultySelector ? 'Fermer' : 'Changer' }}
+      </button>
+    </div>
+    
+    <!-- ✅ Modal de sélection de difficulté avec Cauchemar -->
+    <div *ngIf="showDifficultySelector" class="difficulty-selector">
+      <div class="difficulty-options">
+        <button 
+          class="difficulty-btn facile"
+          [class.active]="currentDifficulty === 'facile'"
+          (click)="changeDifficulty('facile')"
+          (mouseenter)="previewDifficulty('facile')">
+          <span class="difficulty-icon">🟢</span>
+          <span class="difficulty-name">Facile</span>
+          <span class="difficulty-desc">Mots courants</span>
+        </button>
+        
+        <button 
+          class="difficulty-btn moyen"
+          [class.active]="currentDifficulty === 'moyen'"
+          (click)="changeDifficulty('moyen')"
+          (mouseenter)="previewDifficulty('moyen')">
+          <span class="difficulty-icon">📚</span>
+          <span class="difficulty-name">Moyen</span>
+          <span class="difficulty-desc">Mots variés</span>
+        </button>
+        
+        <button 
+          class="difficulty-btn difficile"
+          [class.active]="currentDifficulty === 'difficile'"
+          (click)="changeDifficulty('difficile')"
+          (mouseenter)="previewDifficulty('difficile')">
+          <span class="difficulty-icon">🔥</span>
+          <span class="difficulty-name">Difficile</span>
+          <span class="difficulty-desc">Mots rares (API)</span>
+        </button>
+
+        <button 
+          class="difficulty-btn cauchemar"
+          [class.active]="currentDifficulty === 'cauchemar'"
+          (click)="changeDifficulty('cauchemar')"
+          (mouseenter)="previewDifficulty('cauchemar')">
+          <span class="difficulty-icon">💀</span>
+          <span class="difficulty-name">Cauchemar</span>
+          <span class="difficulty-desc">Mots ultra-complexes</span>
+        </button>
+      </div>
+
+      <!-- ✅ Boutons de prévisualisation -->
+      <div class="preview-buttons">
+        <button class="preview-btn" (click)="previewDifficulty('facile')">👁️ Facile</button>
+        <button class="preview-btn" (click)="previewDifficulty('moyen')">👁️ Moyen</button>
+        <button class="preview-btn" (click)="previewDifficulty('difficile')">👁️ Difficile</button>
+        <button class="preview-btn" (click)="previewDifficulty('cauchemar')">👁️ Cauchemar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Zone de jeu principale avec légende sur le côté -->
   <div class="main-game-area" *ngIf="!isLoading">
     <!-- Grille de jeu -->
@@ -279,8 +344,10 @@
   <div *ngIf="gameOver" class="game-over">
     <h2>Partie terminée !</h2>
     <div class="game-result">
-    <p *ngIf="wordFound">🎉 Félicitations ! Vous avez trouvé le mot !</p>
-    <p *ngIf="!wordFound" class="failure-message">😔 Dommage ! Vous n'avez pas trouvé le mot...</p>
+      <!-- ✅ Messages conditionnels corrigés -->
+      <p *ngIf="wordFound">🎉 Félicitations ! Vous avez trouvé le mot !</p>
+      <p *ngIf="!wordFound" class="failure-message">😔 Dommage ! Vous n'avez pas trouvé le mot...</p>
+      
       <div *ngIf="targetWord && targetWord !== 'X'.repeat(wordLength)" class="target-word">
         <div class="word-label">Le mot à trouver était :</div>
         <div class="word-value">{{ targetWord }}</div>
@@ -335,52 +402,7 @@
   </div>
 </div>
 
-<!-- ✅ Ajouter après la section des statistiques -->
-<div class="difficulty-section">
-  <h3>🎯 Niveau de difficulté</h3>
-  
-  <div class="difficulty-current">
-    <span>Actuel: {{ getDifficultyLabel() }}</span>
-    <button class="btn btn-outline" (click)="showDifficultySelector = !showDifficultySelector">
-      Changer
-    </button>
-  </div>
-  
-  <div *ngIf="showDifficultySelector" class="difficulty-selector">
-    <div class="difficulty-options">
-      <button 
-        class="difficulty-btn facile"
-        [class.active]="currentDifficulty === 'facile'"
-        (click)="changeDifficulty('facile')"
-        (mouseenter)="previewDifficulty('facile')">
-        <span class="difficulty-icon">🟢</span>
-        <span class="difficulty-name">Facile</span>
-        <span class="difficulty-desc">Mots courants</span>
-      </button>
-      
-      <button 
-        class="difficulty-btn moyen"
-        [class.active]="currentDifficulty === 'moyen'"
-        (click)="changeDifficulty('moyen')"
-        (mouseenter)="previewDifficulty('moyen')">
-        <span class="difficulty-icon">📚</span>
-        <span class="difficulty-name">Moyen</span>
-        <span class="difficulty-desc">Mots variés</span>
-      </button>
-      
-      <button 
-        class="difficulty-btn difficile"
-        [class.active]="currentDifficulty === 'difficile'"
-        (click)="changeDifficulty('difficile')"
-        (mouseenter)="previewDifficulty('difficile')">
-        <span class="difficulty-icon">🔥</span>
-        <span class="difficulty-name">Difficile</span>
-        <span class="difficulty-desc">Mots complexes</span>
-      </button>
-    </div>
-  </div>
-</div>
-
+<!-- ✅ Modal générique -->
 <app-modal
   [isOpen]="(modalService.modal$ | async) !== null"
   [type]="(modalService.modal$ | async)?.type || 'confirm'"

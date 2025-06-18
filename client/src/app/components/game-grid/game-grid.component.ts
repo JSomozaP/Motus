@@ -1,6 +1,8 @@
+// ✅ SECTION COMPLÈTE CORRIGÉE
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router'; // ✅ AJOUTÉ
 import { GameService } from '../../services/game.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
@@ -16,7 +18,14 @@ import { LeaderboardService } from '../../services/leaderboard.service';
   templateUrl: './game-grid.component.html',
   styleUrls: ['./game-grid.component.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule, KeyboardComponent, ToastComponent, ModalComponent]
+  imports: [
+    CommonModule, 
+    FormsModule, 
+    KeyboardComponent, 
+    ToastComponent, 
+    ModalComponent,
+    RouterLink  // ✅ AJOUTÉ
+  ]
 })
 export class GameGridComponent implements OnInit {
   // ✅ Propriétés de base du jeu
@@ -983,14 +992,6 @@ export class GameGridComponent implements OnInit {
   // ✅ AJOUTER - Fallback final vers mode facile
   private fallbackToEasyMode() {
     this.toastService.warning('🔄 Difficile indisponible, fallback vers Facile', 3000);
-    this.currentDifficulty = 'facile';
-    this.loadNewWord();
-  }
-
-  // ✅ AJOUTER - Méthode pour réinitialiser la grille
-  private resetGrid() {
-    this.grid = [];
-    this.currentRow = 0;
     this.currentCol = 0;
     this.gameOver = false;
     this.wordFound = false;
@@ -1076,5 +1077,35 @@ export class GameGridComponent implements OnInit {
         console.log(`🗑️ Lettre supprimée à [${this.currentRow}][${this.currentCol}]`);
       }
     }
+  }
+
+  // À ajouter dans game-grid.component.ts (vers la fin des méthodes)
+  resetGrid() {
+    console.log('🔄 Réinitialisation de la grille');
+    
+    // Réinitialiser la grille de jeu
+    this.grid = Array(6).fill(null).map(() => 
+      Array(this.wordLength).fill(null).map(() => ({ 
+        letter: '', 
+        state: '' 
+      }))
+    );
+    
+    // Réinitialiser les positions
+    this.currentRow = 0;
+    this.currentCol = 0;
+    
+    // Réinitialiser les états du jeu
+    this.gameOver = false;
+    this.wordFound = false;
+    this.errorMessage = '';
+    
+    // Réinitialiser les états du clavier
+    this.keyStates = {};
+    
+    // Réinitialiser le timer du mot
+    this.wordStartTime = Date.now();
+    
+    console.log('✅ Grille réinitialisée');
   }
 }

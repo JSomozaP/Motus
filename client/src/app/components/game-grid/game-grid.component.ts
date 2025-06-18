@@ -9,6 +9,7 @@ import { TrouveMotService } from '../../services/trouve-mot.service';
 import { KeyboardComponent } from '../keyboard/keyboard.component';
 import { ToastComponent } from '../toast/toast.component';
 import { ModalComponent } from '../modal/modal.component';
+import { LeaderboardService } from '../../services/leaderboard.service';
 
 @Component({
   selector: 'app-game-grid',
@@ -62,19 +63,22 @@ export class GameGridComponent implements OnInit {
     isPerfect: boolean;
   }> = [];
 
+  // ✅ AJOUTER CETTE LIGNE ICI
+  topScores: any[] = []; // Pour le podium TOP 3
+
   // ✅ Variables de timing (UNE SEULE DÉCLARATION)
   perfectWordStreak = 0;
   wordStartTime = Date.now();
 
   // ✅ Scores
   activeScoreTab = 'session';
-  topScores: Array<{
-    playerAlias: string;
-    totalScore: number;
-    wordsFound: number;
-    bestStreak: number;
-    date: string;
-  }> = [];
+  // topScores: Array<{
+  //   playerAlias: string;
+  //   totalScore: number;
+  //   wordsFound: number;
+  //   bestStreak: number;
+  //   date: string;
+  // }> = [];
 
   // ✅ Difficulté avec Cauchemar
   currentDifficulty: 'facile' | 'moyen' | 'difficile' | 'cauchemar' = 'facile';
@@ -86,6 +90,7 @@ export class GameGridComponent implements OnInit {
     private toastService: ToastService,
     public modalService: ModalService,
     private trouveMotService: TrouveMotService,
+    private leaderboardService: LeaderboardService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
@@ -104,6 +109,8 @@ export class GameGridComponent implements OnInit {
 
       // Charger les stats sauvegardées
       this.loadSavedStats();
+      
+      this.loadTopScores(); // Charger au démarrage
     }
   }
 
@@ -692,16 +699,28 @@ export class GameGridComponent implements OnInit {
   }
 
   loadTopScores() {
-    if (isPlatformBrowser(this.platformId)) {
-      const saved = localStorage.getItem('topScores');
-      if (saved) {
-        try {
-          this.topScores = JSON.parse(saved);
-        } catch (e) {
-          this.topScores = [];
-        }
+    console.log('🔄 Chargement TOP 3...');
+    
+    this.leaderboardService.getGlobalLeaderboard().subscribe({
+      next: (scores) => {
+        console.log('✅ Scores reçus:', scores);
+        
+        // ✅ ADAPTER les données LeaderboardEntry vers le format attendu
+        this.topScores = scores.slice(0, 3).map(score => ({
+          playerAlias: score.login,           // login → playerAlias
+          totalScore: score.score,            // score → totalScore  
+          wordsFound: score.words_found,      // words_found → wordsFound
+          bestStreak: 1,                      // Valeur par défaut
+          date: score.date_achieved           // date_achieved → date
+        }));
+        
+        console.log('🏆 TOP 3 adapté:', this.topScores);
+      },
+      error: (error) => {
+        console.error('❌ Erreur chargement TOP 3:', error);
+        this.topScores = [];
       }
-    }
+    });
   }
 
   private saveScoreToTopScores() {

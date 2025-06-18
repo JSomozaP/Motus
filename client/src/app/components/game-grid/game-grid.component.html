@@ -116,54 +116,62 @@
     </button>
   </div>
 
-  <!-- ✅ Panneau des scores intégré -->
-  <div class="scores-panel" *ngIf="!gameOver">
-    <h3>🏆 Hall of Fame</h3>
-    <div class="scores-tabs">
-      <button 
-        class="tab-btn" 
-        [class.active]="activeScoreTab === 'session'"
-        (click)="activeScoreTab = 'session'"
-      >
-        Session Actuelle
-      </button>
-      <button 
-        class="tab-btn" 
-        [class.active]="activeScoreTab === 'all'"
-        (click)="activeScoreTab = 'all'; loadTopScores()"
-      >
-        Meilleurs Scores
-      </button>
+  <!-- ✅ APERÇU TOP 3 - CORRIGÉ -->
+  <div class="top-players-preview" *ngIf="!gameOver && isAuthenticated">
+    <div class="preview-header">
+      <h3>🏆 Podium des Champions</h3>
+      <p class="preview-subtitle">Top 3 des meilleurs scores</p>
     </div>
     
-    <div class="scores-content">
-      <!-- Historique de la session actuelle -->
-      <div *ngIf="activeScoreTab === 'session'" class="session-history">
-        <div *ngIf="wordsHistory.length === 0" class="no-words">
-          <p>🎯 Aucun mot trouvé pour le moment</p>
-        </div>
-        <div *ngFor="let word of wordsHistory; let i = index" class="word-history-item">
-          <span class="word-number">#{{ i + 1 }}</span>
-          <span class="word-attempts">{{ word.attempts }} essai{{ word.attempts > 1 ? 's' : '' }}</span>
-          <span class="word-score">{{ word.wordScore }}pts</span>
-          <span *ngIf="word.bonusPoints > 0" class="word-bonus">+{{ word.bonusPoints }} bonus</span>
-          <span *ngIf="word.isPerfect" class="perfect-badge">⭐</span>
+    <!-- Podium compact -->
+    <div class="podium-mini" *ngIf="topScores.length > 0; else noScoresPreview">
+      <!-- 🥇 Premier -->
+      <div class="podium-item gold" *ngIf="topScores[0]">
+        <span class="medal">🥇</span>
+        <div class="player-info">
+          <span class="player-name">{{ topScores[0].playerAlias }}</span>
+          <span class="player-score">{{ topScores[0].totalScore }} pts</span>
+          <span class="player-words">{{ topScores[0].wordsFound }} mots</span>
         </div>
       </div>
       
-      <!-- Top scores globaux -->
-      <div *ngIf="activeScoreTab === 'all'" class="global-scores">
-        <div *ngIf="topScores.length === 0" class="no-scores">
-          <p>📊 Chargement des scores...</p>
-        </div>
-        <div *ngFor="let score of topScores; let i = index" class="score-item">
-          <span class="rank">{{ i + 1 }}.</span>
-          <span class="player-name">{{ score.playerAlias || 'Joueur Anonyme' }}</span>
-          <span class="score-value">{{ score.totalScore }}pts</span>
-          <span class="words-count">{{ score.wordsFound }} mots</span>
-          <span *ngIf="score.bestStreak > 1" class="streak">🔥{{ score.bestStreak }}</span>
+      <!-- 🥈 Deuxième -->
+      <div class="podium-item silver" *ngIf="topScores[1]">
+        <span class="medal">🥈</span>
+        <div class="player-info">
+          <span class="player-name">{{ topScores[1].playerAlias }}</span>
+          <span class="player-score">{{ topScores[1].totalScore }} pts</span>
+          <span class="player-words">{{ topScores[1].wordsFound }} mots</span>
         </div>
       </div>
+      
+      <!-- 🥉 Troisième -->
+      <div class="podium-item bronze" *ngIf="topScores[2]">
+        <span class="medal">🥉</span>
+        <div class="player-info">
+          <span class="player-name">{{ topScores[2].playerAlias }}</span>
+          <span class="player-score">{{ topScores[2].totalScore }} pts</span>
+          <span class="player-words">{{ topScores[2].wordsFound }} mots</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Message si pas de scores -->
+    <ng-template #noScoresPreview>
+      <div class="no-scores-preview">
+        <p>🎯 Aucun champion pour le moment</p>
+        <p>Soyez le premier à marquer l'histoire !</p>
+      </div>
+    </ng-template>
+    
+    <!-- Actions -->
+    <div class="preview-actions">
+      <a routerLink="/leaderboard" class="see-full-leaderboard">
+        📊 Voir le classement complet
+      </a>
+      <button (click)="loadTopScores()" class="refresh-scores">
+        🔄 Actualiser
+      </button>
     </div>
   </div>
 </div>

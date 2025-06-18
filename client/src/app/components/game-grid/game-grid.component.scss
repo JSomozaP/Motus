@@ -703,6 +703,32 @@
   }
 }
 
+.preview-actions {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+  
+  .see-full-leaderboard {
+    flex: 1;
+    padding: 8px 16px;
+    background: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+  
+  .refresh-scores {
+    padding: 8px 12px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+}
+
 // Zone de jeu principale avec layout adaptatif
 .main-game-area {
   display: flex;
@@ -1433,4 +1459,30 @@
     border: 2px solid #0056b3;
     border-radius: 5px;
   }
+}
+
+// Dans game-grid.component.scss
+.podium-mini {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 15px 0;
+}
+
+.podium-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  
+  &.gold { border-left: 4px solid #ffd700; }
+  &.silver { border-left: 4px solid #c0c0c0; }
+  &.bronze { border-left: 4px solid #cd7f32; }
+  
+  .medal { margin-right: 10px; font-size: 1.2rem; }
+  .player-info { flex: 1; }
+  .player-name { font-weight: bold; }
+  .player-score { color: #28a745; margin-left: 10px; }
 }

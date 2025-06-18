@@ -1083,29 +1083,33 @@ export class GameGridComponent implements OnInit {
   resetGrid() {
     console.log('🔄 Réinitialisation de la grille');
     
-    // Réinitialiser la grille de jeu
-    this.grid = Array(6).fill(null).map(() => 
-      Array(this.wordLength).fill(null).map(() => ({ 
-        letter: '', 
-        state: '' 
-      }))
-    );
-    
-    // Réinitialiser les positions
+    // Créer une nouvelle grille vide
+    this.grid = [];
+    for (let i = 0; i < 6; i++) {
+      const row = [];
+      for (let j = 0; j < this.wordLength; j++) {
+        row.push({ letter: '', state: 'empty' });
+      }
+      this.grid.push(row);
+    }
+
+    // ✅ IMPORTANT : Placer l'indice sur la première ligne si disponible
+    if (this.hint) {
+      this.grid[0][0].letter = this.hint;
+      this.grid[0][0].state = 'hint';
+      this.currentCol = 1; // Commencer après l'indice
+    } else {
+      this.currentCol = 0; // Commencer au début si pas d'indice
+    }
+
+    // Réinitialiser les autres propriétés
     this.currentRow = 0;
-    this.currentCol = 0;
-    
-    // Réinitialiser les états du jeu
     this.gameOver = false;
     this.wordFound = false;
     this.errorMessage = '';
-    
-    // Réinitialiser les états du clavier
     this.keyStates = {};
-    
-    // Réinitialiser le timer du mot
     this.wordStartTime = Date.now();
-    
-    console.log('✅ Grille réinitialisée');
+
+    console.log('✅ Grille réinitialisée avec indice:', this.hint);
   }
 }

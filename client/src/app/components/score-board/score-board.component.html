@@ -1,34 +1,84 @@
-<div class="score-board">
-  <h2>Meilleurs scores</h2>
-  
-  <div *ngIf="isLoading" class="loading">
-    Chargement des scores...
+<div class="score-board-container">
+  <div class="score-board-header">
+    <h2>🏆 Wall of Fame - MOTUS</h2>
+    <div class="header-actions">
+      <button (click)="refreshLeaderboard()" class="refresh-btn">
+        🔄 Actualiser
+      </button>
+      <a routerLink="/" class="back-btn">
+        🎮 Retour au Jeu
+      </a>
+    </div>
   </div>
 
-  <div *ngIf="errorMessage" class="error">
-    {{errorMessage}}
+  <!-- État de chargement -->
+  <div *ngIf="isLoading" class="loading-state">
+    <div class="spinner"></div>
+    <p>⏳ Chargement du classement...</p>
   </div>
 
-  <table *ngIf="!isLoading && scores.length > 0">
-    <thead>
-      <tr>
-        <th>Position</th>
-        <th>Joueur</th>
-        <th>Score</th>
-        <th>Date</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let score of scores; let i = index">
-        <td>{{i + 1}}</td>
-        <td>{{score.username}}</td>
-        <td>{{score.score}}</td>
-        <td>{{score.date | date:'dd/MM/yyyy HH:mm'}}</td>
-      </tr>
-    </tbody>
-  </table>
+  <!-- Message d'erreur -->
+  <div *ngIf="errorMessage && !isLoading" class="error-state">
+    <p>❌ {{ errorMessage }}</p>
+    <button (click)="refreshLeaderboard()" class="retry-btn">
+      🔄 Réessayer
+    </button>
+  </div>
 
-  <div *ngIf="!isLoading && scores.length === 0" class="no-scores">
-    Aucun score enregistré
+  <!-- Tableau des scores -->
+  <div *ngIf="!isLoading && scores.length > 0" class="scores-table-container">
+    <table class="scores-table">
+      <thead>
+        <tr>
+          <th class="rank-col">🏆 Rang</th>
+          <th class="player-col">👤 Joueur</th>
+          <th class="score-col">⭐ Score</th>
+          <th class="words-col">📝 Mots</th>
+          <th class="difficulty-col">🎯 Difficulté</th>
+          <th class="date-col">📅 Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let score of scores; let i = index" 
+            [class.podium-gold]="i === 0"
+            [class.podium-silver]="i === 1"
+            [class.podium-bronze]="i === 2"
+            class="score-row">
+          <td class="rank-cell">
+            <span class="rank-badge" [class.gold]="i === 0" [class.silver]="i === 1" [class.bronze]="i === 2">
+              <span *ngIf="i === 0" class="medal">🥇</span>
+              <span *ngIf="i === 1" class="medal">🥈</span>
+              <span *ngIf="i === 2" class="medal">🥉</span>
+              <span *ngIf="i > 2" class="position">{{ i + 1 }}</span>
+            </span>
+          </td>
+          <td class="player-cell">
+            <strong>{{ score.login }}</strong>
+          </td>
+          <td class="score-cell">
+            <span class="score-value">{{ score.score }}</span>
+          </td>
+          <td class="words-cell">
+            {{ score.words_found }}
+          </td>
+          <td class="difficulty-cell">
+            <span class="difficulty-badge" [class]="'diff-' + score.difficulty">
+              {{ score.difficulty }}
+            </span>
+          </td>
+          <td class="date-cell">
+            {{ score.date_achieved }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Aucun score -->
+  <div *ngIf="!isLoading && scores.length === 0 && !errorMessage" class="no-scores-state">
+    <div class="empty-trophy">🏆</div>
+    <h3>Aucun score enregistré</h3>
+    <p>Soyez le premier à marquer l'histoire du MOTUS !</p>
+    <a routerLink="/" class="play-btn">🎮 Commencer à jouer</a>
   </div>
 </div>

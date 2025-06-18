@@ -1,0 +1,7 @@
+<!-- Navigation -->
+<nav class="nav-menu">
+  <a routerLink="/game" routerLinkActive="active">🎮 Jeu</a>
+  <a routerLink="/leaderboard" routerLinkActive="active">🏆 Classement</a>
+  <a *ngIf="!isLoggedIn" routerLink="/login" routerLinkActive="active">🔐 Connexion</a>
+  <a *ngIf="!isLoggedIn" routerLink="/register" routerLinkActive="active">📝 Inscription</a>
+</nav>

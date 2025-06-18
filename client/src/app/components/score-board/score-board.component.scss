@@ -1,41 +1,256 @@
-.score-board {
-  padding: 20px;
-  max-width: 800px;
+.score-board-container {
+  max-width: 1000px;
   margin: 0 auto;
+  padding: 20px;
+  font-family: 'Arial', sans-serif;
 
-  h2 {
-    text-align: center;
-    color: #333;
-    margin-bottom: 20px;
+  .score-board-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 15px;
+    color: white;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+
+    h2 {
+      margin: 0;
+      font-size: 2rem;
+      font-weight: bold;
+    }
   }
 
-  table {
+  .header-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .refresh-btn, .retry-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+  }
+
+  .back-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+  }
+
+  .loading-state, .error-state, .no-scores-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .error-state {
+    color: #dc3545;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+  }
+
+  .scores-table-container {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  }
+
+  .scores-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 20px;
 
-    th, td {
-      padding: 10px;
-      text-align: left;
-      border-bottom: 1px solid #ddd;
+    thead tr {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
     }
 
     th {
-      background-color: #f5f5f5;
-      font-weight: bold;
+      padding: 15px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
 
-    tr:hover {
-      background-color: #f9f9f9;
+    .rank-col { width: 80px; text-align: center; }
+    .score-col { width: 100px; text-align: center; }
+    .words-col { width: 80px; text-align: center; }
+    .difficulty-col { width: 120px; text-align: center; }
+    .date-col { width: 140px; }
+  }
+
+  .score-row {
+    transition: all 0.3s;
+    border-bottom: 1px solid #f0f0f0;
+
+    &:hover {
+      background: #f8f9ff;
+      transform: translateX(5px);
+    }
+
+    &.podium-gold {
+      background: linear-gradient(135deg, #fff7e6 0%, #fff3d3 100%);
+      border-left: 4px solid #ffd700;
+    }
+
+    &.podium-silver {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-left: 4px solid #c0c0c0;
+    }
+
+    &.podium-bronze {
+      background: linear-gradient(135deg, #fff8f0 0%, #ffe5cc 100%);
+      border-left: 4px solid #cd7f32;
+    }
+
+    td {
+      padding: 15px;
+      vertical-align: middle;
     }
   }
 
-  .loading, .error, .no-scores {
-    text-align: center;
-    padding: 20px;
+  .rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-weight: bold;
+
+    &.gold { background: #ffd700; color: #333; }
+    &.silver { background: #c0c0c0; color: #333; }
+    &.bronze { background: #cd7f32; color: white; }
   }
 
-  .error {
-    color: #dc3545;
+  .medal {
+    font-size: 1.5rem;
+  }
+
+  .position {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #666;
+  }
+
+  .score-value {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #28a745;
+  }
+
+  .difficulty-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: capitalize;
+
+    &.diff-facile {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    &.diff-moyen {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    &.diff-difficile {
+      background: #f8d7da;
+      color: #721c24;
+    }
+  }
+
+  .no-scores-state {
+    .empty-trophy {
+      font-size: 4rem;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+
+    h3 {
+      color: #333;
+      margin-bottom: 10px;
+    }
+
+    p {
+      color: #666;
+      margin-bottom: 30px;
+    }
+  }
+
+  .play-btn {
+    display: inline-block;
+    padding: 15px 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    text-decoration: none;
+    border-radius: 25px;
+    font-weight: 600;
+    transition: all 0.3s;
+
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .score-board-header {
+      flex-direction: column;
+      gap: 15px;
+      text-align: center;
+    }
+
+    .scores-table {
+      font-size: 0.9rem;
+    }
+
+    .difficulty-col,
+    .date-col {
+      display: none;
+    }
   }
 }

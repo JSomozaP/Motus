@@ -1,0 +1,92 @@
+<div class="register-container">
+  <div class="register-card">
+    <h1>🎯 MOTUS</h1>
+    <h2>Inscription</h2>
+    
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" novalidate>
+      
+      <!-- Pseudo -->
+      <div class="form-group">
+        <label for="pseudo">Pseudo *</label>
+        <input
+          type="text"
+          id="pseudo"
+          formControlName="pseudo"
+          placeholder="Votre pseudo"
+          class="form-control"
+          [class.is-invalid]="pseudo?.invalid && pseudo?.touched"
+        >
+        <div class="invalid-feedback" *ngIf="pseudo?.invalid && pseudo?.touched">
+          <small *ngIf="pseudo?.errors?.['required']">Le pseudo est obligatoire</small>
+          <small *ngIf="pseudo?.errors?.['minlength']">Le pseudo doit faire au moins 3 caractères</small>
+          <small *ngIf="pseudo?.errors?.['maxlength']">Le pseudo ne peut pas dépasser 50 caractères</small>
+        </div>
+      </div>
+
+      <!-- ❌ SUPPRIMÉ : Champ Email -->
+
+      <!-- Mot de passe -->
+      <div class="form-group">
+        <label for="password">Mot de passe *</label>
+        <input
+          type="password"
+          id="password"
+          formControlName="password"
+          placeholder="Votre mot de passe"
+          class="form-control"
+          [class.is-invalid]="password?.invalid && password?.touched"
+        >
+        <div class="invalid-feedback" *ngIf="password?.invalid && password?.touched">
+          <small *ngIf="password?.errors?.['required']">Le mot de passe est obligatoire</small>
+          <small *ngIf="password?.errors?.['minlength']">Le mot de passe doit faire au moins 6 caractères</small>
+        </div>
+      </div>
+
+      <!-- Numéro de sécurité -->
+      <div class="form-group">
+        <label for="numero_secu">Numéro de sécurité *</label>
+        <input
+          type="text"
+          id="numero_secu"
+          formControlName="numero_secu"
+          placeholder="123456789012345"
+          maxlength="15"
+          class="form-control"
+          [class.is-invalid]="numero_secu?.invalid && numero_secu?.touched"
+        >
+        <div class="invalid-feedback" *ngIf="numero_secu?.invalid && numero_secu?.touched">
+          <small *ngIf="numero_secu?.errors?.['required']">Le numéro de sécurité est obligatoire</small>
+          <small *ngIf="numero_secu?.errors?.['pattern']">Le numéro de sécurité doit contenir exactement 15 chiffres</small>
+        </div>
+        <small class="form-text text-muted">
+          🔒 Numéro de sécurité à 15 chiffres (obligatoire selon l'énoncé)
+        </small>
+      </div>
+
+      <!-- Messages -->
+      <div class="alert alert-danger" *ngIf="errorMessage">
+        {{ errorMessage }}
+      </div>
+      
+      <div class="alert alert-success" *ngIf="successMessage">
+        {{ successMessage }}
+      </div>
+
+      <!-- Bouton de soumission -->
+      <button 
+        type="submit" 
+        class="register-btn"
+        [disabled]="registerForm.invalid || isLoading"
+      >
+        <span *ngIf="isLoading">⏳ Inscription...</span>
+        <span *ngIf="!isLoading">📝 S'inscrire</span>
+      </button>
+
+    </form>
+
+    <div class="login-link">
+      <p>Déjà un compte ?</p>
+      <a routerLink="/login">🚀 Se connecter</a>
+    </div>
+  </div>
+</div>

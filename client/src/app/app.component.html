@@ -1,6 +1,14 @@
-<nav>
-  <a routerLink="/game">Jouer</a>
-  <a routerLink="/scores">Scores</a>
-</nav>
-
-<router-outlet></router-outlet>
+<div style="padding: 20px; background: #f5f5f5;">
+  <nav style="margin-bottom: 20px; text-align: center;">
+    <a routerLink="/" 
+       style="padding: 10px 20px; margin: 5px; background: #007bff; color: white; text-decoration: none; border-radius: 5px;">
+       🎮 Jouer
+    </a>
+    <a routerLink="/leaderboard" 
+       style="padding: 10px 20px; margin: 5px; background: #28a745; color: white; text-decoration: none; border-radius: 5px;">
+       🏆 Classement
+    </a>
+  </nav>
+  
+  <router-outlet></router-outlet>
+</div>

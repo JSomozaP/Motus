@@ -1,29 +1,45 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-
-interface Score {
-  username: string;
-  score: number;
-  date: Date;
-}
+import { RouterModule } from '@angular/router';
+import { LeaderboardService, LeaderboardEntry } from '../../services/leaderboard.service';
 
 @Component({
   selector: 'app-score-board',
   templateUrl: './score-board.component.html',
   styleUrls: ['./score-board.component.scss'],
   standalone: true,
-  imports: [CommonModule]
+  imports: [CommonModule, RouterModule]
 })
 export class ScoreBoardComponent implements OnInit {
-  scores: Score[] = [];
+  scores: LeaderboardEntry[] = [];
   isLoading = false;
   errorMessage = '';
 
+  constructor(private leaderboardService: LeaderboardService) {}
+
   ngOnInit() {
-    // TODO: Charger les scores depuis l'API
-    this.scores = [
-      { username: 'Joueur 1', score: 100, date: new Date() },
-      { username: 'Joueur 2', score: 80, date: new Date() }
-    ];
+    this.loadLeaderboard();
+  }
+
+  loadLeaderboard() {
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    this.leaderboardService.getGlobalLeaderboard().subscribe({
+      next: (data) => {
+        console.log('🏆 Leaderboard chargé:', data);
+        this.scores = data;
+        this.isLoading = false;
+      },
+      error: (error) => {
+        console.error('❌ Erreur chargement leaderboard:', error);
+        this.errorMessage = 'Impossible de charger le classement';
+        this.isLoading = false;
+      }
+    });
+  }
+
+  refreshLeaderboard() {
+    this.loadLeaderboard();
   }
 }

@@ -17,7 +17,7 @@ interface LoginResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = 'http://localhost:5000/api/auth';
+  private apiUrl = 'http://localhost:3001/api/auth';
   private tokenKey = 'token';
   private isLoggedInSubject = new BehaviorSubject<boolean>(this.hasToken());
 

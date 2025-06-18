@@ -7,7 +7,7 @@ import { catchError, map, timeout } from 'rxjs/operators';
   providedIn: 'root'
 })
 export class TrouveMotService {
-  private apiUrl = 'http://localhost:5000/api/proxy/trouve-mot';
+  private apiUrl = 'http://localhost:3001/api/proxy/trouve-mot';
   private isOnline = true;
 
   constructor(private http: HttpClient) {}

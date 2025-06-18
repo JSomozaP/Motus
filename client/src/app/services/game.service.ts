@@ -72,7 +72,7 @@ interface CompleteStats extends WordStats {
   providedIn: 'root'
 })
 export class GameService {
-  private apiUrl = 'http://localhost:5000/api/game';
+  private apiUrl = 'http://localhost:3001/api/game';
   
   // ✅ Gestion des mots utilisés pour éviter les répétitions
   private usedWords = new Set<string>();

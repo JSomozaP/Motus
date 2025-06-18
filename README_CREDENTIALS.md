@@ -20,6 +20,20 @@
 - [x] ✅ Navigation complète
 - [x] ✅ Sécurité JWT
 - [x] ✅ Base de données optimisée
+- [x] 4 modes de difficulté (Facile, Moyen, Difficile, Cauchemar)
+- [x] API externe trouve-mot.fr intégrée avec fallback intelligent
+- [x] Interface utilisateur complète (grille, clavier, notifications)
+- [x] Système d'authentification simplifié
+- [x] Classement global persistant avec base de données
+- [x] Scoring avancé (temps + tentatives)
+- [x] Architecture modulaire Angular 18 + Node.js
+
+### 🔧 Corrections appliquées
+- [x] Navigation : Bouton "Voir classement complet" fonctionnel
+- [x] Logique : Méthode resetGrid() implémentée avec gestion indice
+- [x] Réseau : Ports synchronisés (localhost:3001 partout)
+- [x] UI : Première lettre d'indice affichée automatiquement
+- [x] Performance : Cache API optimisé (30 mots/lot mode cauchemar)
 
 ### 🔐 Limitations de sécurité identifiées
 

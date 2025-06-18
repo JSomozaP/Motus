@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-register',
@@ -26,31 +27,35 @@ export class RegisterComponent {
       pseudo: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(50)]],
       password: ['', [Validators.required, Validators.minLength(6)]],
       numero_secu: ['', [Validators.required, Validators.pattern(/^\d{15}$/)]]
-      // ✅ SUPPRIMÉ : email
     });
   }
 
   onSubmit() {
     if (this.registerForm.valid) {
       this.isLoading = true;
-      this.errorMessage = '';
+      this.errorMessage = "";
       
       const formData = this.registerForm.value;
       
-      this.authService.register(formData).subscribe({
-        next: (response) => {
-          console.log('✅ Inscription réussie', response);
-          this.successMessage = 'Inscription réussie ! Redirection vers la connexion...';
+      this.authService.register(
+        formData.pseudo,
+        "", 
+        formData.password
+      ).subscribe(
+        (response: any) => {
+          console.log("✅ Inscription réussie", response);
+          this.successMessage = "Inscription réussie ! Redirection vers la connexion...";
+          this.isLoading = false;
           setTimeout(() => {
-            this.router.navigate(['/login']);
+            this.router.navigate(["/login"]);
           }, 2000);
         },
-        error: (error) => {
-          console.error('❌ Erreur inscription', error);
-          this.errorMessage = error.error?.message || 'Erreur lors de l\'inscription';
+        (error: any) => {
+          console.error("❌ Erreur inscription", error);
+          this.errorMessage = error.error?.message || "Erreur lors de l'inscription";
           this.isLoading = false;
         }
-      });
+      );
     } else {
       this.markFormGroupTouched();
     }
@@ -66,5 +71,4 @@ export class RegisterComponent {
   get pseudo() { return this.registerForm.get('pseudo'); }
   get password() { return this.registerForm.get('password'); }
   get numero_secu() { return this.registerForm.get('numero_secu'); }
-  // ✅ SUPPRIMÉ : get email()
 }

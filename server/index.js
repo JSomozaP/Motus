@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 
 // Import des routes
 import authRoutes from './routes/authRoutes.js';
-import gameRoutes from './routes/gameRoutes.js';
+// import gameRoutes from './routes/gameRoutes.js';
 import proxyRoutes from './routes/proxyRoutes.js';  // ✅ Import des routes proxy
 
 // Configuration des variables d'environnement
@@ -15,14 +15,17 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Sécurité avec Helmet
+
+// // Sécurité avec Helmet
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
+
 // ✅ Configuration CORS
 app.use(cors({
     origin: [
+        
         'http://localhost:4201',
         'http://127.0.0.1:4201',
         'http://localhost:4200',
@@ -56,43 +59,45 @@ app.use('/api/proxy', proxyRoutes);
 
 // Routes avec authentification
 app.use('/api/auth', authRoutes);
-app.use('/api/game', gameRoutes);
+// app.use('/api/game', gameRoutes);
+
+
+
+// Route de santé
+// app.get('/api/health', (req, res) => {
+//     res.json({ 
+//         status: 'OK', 
+//         timestamp: new Date().toISOString(),
+//         environment: process.env.NODE_ENV 
+//     });
+// });
+
+// Middleware de gestion d'erreurs global
+// app.use((err, req, res, next) => {
+//     console.error('Erreur non gérée:', err);
+//     res.status(500).json({ 
+//         message: 'Erreur interne du serveur',
+//         ...(process.env.NODE_ENV === 'development' && { error: err.message })
+//     });
+// });
+
+// Gestion des routes non trouvées
+// app.use('*', (req, res) => {
+//     console.log('❌ Route non trouvée:', req.originalUrl);
+//     res.status(404).json({ message: 'Route non trouvée', url: req.originalUrl });
+// });
 
 // Route de test simple
 app.get('/test', (req, res) => {
     res.json({ message: "Le serveur fonctionne !" });
 });
 
-// Route de santé
-app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'OK', 
-        timestamp: new Date().toISOString(),
-        environment: process.env.NODE_ENV 
-    });
-});
-
-// Middleware de gestion d'erreurs global
-app.use((err, req, res, next) => {
-    console.error('Erreur non gérée:', err);
-    res.status(500).json({ 
-        message: 'Erreur interne du serveur',
-        ...(process.env.NODE_ENV === 'development' && { error: err.message })
-    });
-});
-
-// Gestion des routes non trouvées
-app.use('*', (req, res) => {
-    console.log('❌ Route non trouvée:', req.originalUrl);
-    res.status(404).json({ message: 'Route non trouvée', url: req.originalUrl });
-});
-
 // Démarrage du serveur
-app.listen(PORT, () => {
+app.listen(PORT,"127.0.0.1", () => {
     console.log(`🚀 Serveur démarré sur le port ${PORT}`);
     console.log(`📊 Environnement: ${process.env.NODE_ENV}`);
     console.log(`🌐 CORS autorisé pour: http://localhost:4201, http://localhost:4200`);
     console.log(`🔧 Routes proxy disponibles: /api/proxy/*`);
 });
 
-export default app;
+// export default app;

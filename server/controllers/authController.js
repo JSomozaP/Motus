@@ -69,6 +69,7 @@ export const register = async (req, res) => {
 
 // Connexion
 export const login = async (req, res) => {
+    console.log('login', req.body);
     try {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {

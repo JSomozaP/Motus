@@ -5,130 +5,102 @@ import { authenticateToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// ✅ Routes proxy PUBLIQUES (AVANT l'authentification)
-// Proxy pour test de connexion
-router.get('/proxy/trouve-mot/test', async (req, res) => {
-  try {
-    console.log('🔗 Test connexion API trouve-mot.fr...');
-    
-    const response = await axios.get('https://trouve-mot.fr/api/random/', {
-      timeout: 3000,
-      headers: {
-        'User-Agent': 'Motus-Game/1.0'
-      }
-    });
-    
-    res.json({ 
-      available: true, 
-      status: response.status,
-      message: 'API trouve-mot.fr disponible'
-    });
-    
-  } catch (error) {
-    console.warn('❌ Test connexion échoué:', error.message);
-    
-    res.json({ 
-      available: false, 
-      status: 0,
-      message: 'API trouve-mot.fr indisponible - fallback local activé',
-      error: error.message
-    });
-  }
-});
+console.log('✅ GameRoutes avec FALLBACK LOCAL UNIQUEMENT');
 
-// Proxy pour mot aléatoire
-router.get('/proxy/trouve-mot/random', async (req, res) => {
+// ✅ ROUTE 1 - Mots par taille exacte (LOCAL SEULEMENT)
+router.get('/proxy/trouve-mot/size/:length/:maxResults', async (req, res) => {
   try {
-    console.log('🔥 Appel API trouve-mot.fr via proxy...');
+    const { length, maxResults } = req.params;
+    console.log(`🎯 LOCAL SIZE: ${maxResults} mots de ${length} lettres (sans API externe)`);
     
-    const response = await axios.get('https://trouve-mot.fr/api/random/', {
-      timeout: 5000,
-      headers: {
-        'User-Agent': 'Motus-Game/1.0',
-        'Accept': 'application/json'
-      }
-    });
-    
-    console.log('✅ Réponse API trouve-mot:', response.data);
-    res.json(response.data);
-    
-  } catch (error) {
-    console.error('❌ Erreur API trouve-mot:', error.message);
-    
-    // Fallback avec un mot difficile local
-    const hardWords = [
-      'AZYME', 'FJORD', 'SPHINX', 'TOXIN', 'XENON', 'QUARK', 'DJINN', 'EPOXY',
-      'GEYSER', 'WHISKY', 'ZYGOTE', 'KLAXON', 'MYTHE', 'NEXUS', 'OZONE'
-    ];
-    
-    const randomWord = hardWords[Math.floor(Math.random() * hardWords.length)];
-    
-    res.json([{ 
-      name: randomWord,
-      source: 'local-fallback',
-      difficulty: 'difficile'
-    }]);
-  }
-});
-
-// Proxy pour mots par longueur
-router.get('/proxy/trouve-mot/longueur/:length', async (req, res) => {
-  try {
-    const { length } = req.params;
-    console.log(`🔥 Recherche mots de ${length} lettres via proxy...`);
-    
-    // Essayer différents endpoints de l'API trouve-mot
-    const endpoints = [
-      `https://trouve-mot.fr/api/size/${length}/1`,
-      `https://trouve-mot.fr/api/longueur/${length}`,
-      `https://trouve-mot.fr/api/length/${length}`
-    ];
-    
-    let response = null;
-    for (const endpoint of endpoints) {
-      try {
-        response = await axios.get(endpoint, {
-          timeout: 5000,
-          headers: {
-            'User-Agent': 'Motus-Game/1.0',
-            'Accept': 'application/json'
-          }
-        });
-        console.log(`✅ Endpoint fonctionnel: ${endpoint}`);
-        break;
-      } catch (endpointError) {
-        console.warn(`⚠️ Endpoint échoué: ${endpoint}`);
-        continue;
-      }
-    }
-    
-    if (response) {
-      console.log('✅ Mots reçus:', response.data?.length || 'unknown');
-      res.json(response.data);
-    } else {
-      throw new Error('Tous les endpoints ont échoué');
-    }
-    
-  } catch (error) {
-    console.error('❌ Erreur API trouve-mot longueur:', error.message);
-    
-    // Fallback avec mots locaux par longueur
-    const hardWordsByLength = {
-      3: ['AXE', 'GYM', 'HIE', 'OXY', 'QUI', 'RYE', 'VEX', 'ZUT'],
-      4: ['CZAR', 'EXAM', 'JAZZ', 'LYNX', 'ONYX', 'PRIX', 'SEXY', 'UNIX'],
-      5: ['AZYME', 'DJINN', 'FJORD', 'SPHINX', 'TOXIN', 'XENON', 'QUARK', 'EPOXY'],
-      6: ['AZIMUT', 'COGNAC', 'KLAXON', 'WHISKY', 'ZYGOTE', 'GEYSER'],
-      7: ['AZIMUTS', 'CYCLONE', 'QUETZAL', 'RYTHMES', 'TOXINES']
+    // ✅ DÉSACTIVER L'API EXTERNE - UTILISER SEULEMENT LOCAL
+    const fallbackWords = {
+      3: ['AXE', 'BYE', 'GYM', 'HIE', 'JEU', 'KIT', 'LAX', 'NET', 'OXY', 'QUI'],
+      4: ['AXER', 'CZAR', 'DYKE', 'EXAM', 'FAUX', 'GYMS', 'JAZZ', 'KIWI', 'LYNX', 'MAXI'],
+      5: ['AZYME', 'BANJO', 'CAJOU', 'DJINN', 'EPOXY', 'FJORD', 'GNOME', 'HYMEN', 'JOKER', 'KRILL'],
+      6: ['ABAQUE', 'ABSOLU', 'ABSENT', 'ACHEVE', 'ACTION', 'ADAGIO', 'ADOPTE', 'ADJURE', 'ADMIRE', 'AERIEN'],
+      7: ['ABYSSES', 'ACCORDE', 'ACHETER', 'ADAPTER', 'AEROBIC', 'AEROSOL', 'AFFAIRE', 'AGENCER', 'ALARMER', 'AZIMUTS'],
+      8: ['ABATTOIR', 'ABSTRACT', 'ACCIDENT', 'ACHETEUR', 'ACTIVERA', 'ADAPTEUR', 'AERIENNE', 'AFFICHER', 'AGENCEUR', 'BYZANTINE'],
+      9: ['ABANDONNER', 'ACCELERER', 'ACCENTUER', 'ACCEPTEUR', 'ACCESSOIRE', 'ASYMETRIE', 'COMPLEXES', 'EXCENTRIQUE', 'FREQUENCY', 'MYSTERIUM']
     };
     
-    const words = hardWordsByLength[req.params.length] || hardWordsByLength[5];
+    const targetLength = parseInt(length);
+    const words = fallbackWords[targetLength] || fallbackWords[5];
     
-    res.json(words.map(word => ({ 
+    console.log(`✅ LOCAL: ${words.length} mots de ${targetLength} lettres envoyés`);
+    
+    res.json(words.slice(0, parseInt(maxResults)).map(word => ({ 
       name: word,
-      source: 'local-fallback',
-      difficulty: 'difficile'
+      source: 'local-only',
+      length: word.length
     })));
+    
+  } catch (error) {
+    console.error(`❌ Erreur route size:`, error.message);
+    res.status(500).json({ error: 'Erreur serveur' });
   }
+});
+
+// ✅ ROUTE 2 - Mots minimum (LOCAL SEULEMENT)
+router.get('/proxy/trouve-mot/sizemin/:minLength/:maxResults', async (req, res) => {
+  try {
+    const { minLength, maxResults } = req.params;
+    console.log(`💀 LOCAL SIZEMIN: ${maxResults} mots minimum ${minLength} lettres (sans API externe)`);
+    
+    // ✅ DÉSACTIVER L'API EXTERNE - UTILISER SEULEMENT LOCAL
+    const longWords = [
+      'ABSINTHE', 'BYZANTINE', 'COMPLEXE', 'DYNAMITE', 'EXORCISE', 'FREQUENCE',
+      'GYMNASIUM', 'HYPNOTIC', 'ISOCLINE', 'JACINTHE', 'KRYPTONE', 'LUXURIEUX',
+      'MYSTERIUM', 'NEOLATINE', 'OXYMORRON', 'PARADOXAL', 'QUIPROQUO', 'SYNCHRONE',
+      'ABRICOTIER', 'BIOCHEMIQUE', 'CRYPTOGRAMME', 'EXORBITANTE', 'GYNAECOLOGIE',
+      'PSYCHOLOGIE', 'XYLOGRAPHIE', 'ZOOTECHNIE', 'ABANDONNANT', 'ACCELERATION',
+      'ACCLIMATENT', 'ACCOMPAGNENT', 'ACCREDITATIONS', 'ACCULTURATION', 'ABDICATIONS'
+    ];
+    
+    const minLen = parseInt(minLength);
+    const filteredWords = longWords.filter(word => word.length >= minLen);
+    
+    console.log(`✅ LOCAL SIZEMIN: ${filteredWords.length} mots minimum ${minLen} lettres envoyés`);
+    
+    res.json(filteredWords.slice(0, parseInt(maxResults)).map(word => ({ 
+      name: word,
+      source: 'local-only-sizemin',
+      difficulty: 'cauchemar'
+    })));
+    
+  } catch (error) {
+    console.error(`❌ Erreur route sizemin:`, error.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE 3 - Random (LOCAL SEULEMENT)
+router.get('/proxy/trouve-mot/random', async (req, res) => {
+  try {
+    console.log('🎲 LOCAL RANDOM: Mot aléatoire (sans API externe)');
+    
+    const fallbackWords = ['SPHINX', 'QUARTZ', 'FJORD', 'WHISKY', 'GYMNOTE', 'AZYME', 'TOXIN'];
+    const randomWord = fallbackWords[Math.floor(Math.random() * fallbackWords.length)];
+    
+    console.log(`✅ LOCAL RANDOM: ${randomWord} envoyé`);
+    
+    res.json([{ name: randomWord, source: 'local-only-random' }]);
+    
+  } catch (error) {
+    console.error('❌ Erreur random local:', error.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// ✅ ROUTE 4 - Test (LOCAL SEULEMENT)
+router.get('/proxy/trouve-mot/test', async (req, res) => {
+  console.log('🔗 Test connexion (mode local seulement)');
+  
+  res.json({ 
+    available: true, 
+    message: 'Mode local activé (API externe désactivée)',
+    source: 'local-only'
+  });
 });
 
 // ✅ À PARTIR D'ICI : Toutes les routes nécessitent une authentification

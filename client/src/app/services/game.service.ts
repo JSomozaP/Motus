@@ -72,7 +72,8 @@ interface CompleteStats extends WordStats {
   providedIn: 'root'
 })
 export class GameService {
-  private apiUrl = 'http://localhost:3001/api/game';
+  // ✅ CHANGER LE PORT
+  private apiUrl = 'http://localhost:3002/api/game'; // ✅ 3001 → 3002
   
   // ✅ Gestion des mots utilisés pour éviter les répétitions
   private usedWords = new Set<string>();
@@ -755,5 +756,42 @@ export class GameService {
   // - loadCauchemarWords()
   // - loadCauchemarWordsFromFile() 
   // - getCauchemarWords()
+
+  // 🎯 Récupérer un mot via votre nouveau serveur
+  getWordFromServer(difficulty: string = 'facile'): Observable<string> {
+    return this.http.get<any>(`http://localhost:3002/api/db/mots/random`).pipe(
+      map(response => {
+        console.log('✅ Mot reçu du serveur mock:', response);
+        return response.mot || response.name || 'MOTUS';
+      }),
+      catchError(error => {
+        console.warn('⚠️ Erreur serveur, fallback local');
+        return this.getWordFromPremiumList();
+      })
+    );
+  }
+
+  // 🎯 Créer une partie via le nouveau serveur
+  createGameViaServer(userId: number, difficulty: string): Observable<any> {
+    return this.http.post(`http://localhost:3002/api/parties/nouvelle`, {
+      userId,
+      difficulte: difficulty
+    }).pipe(
+      catchError(error => {
+        console.warn('⚠️ Erreur création partie serveur, simulation locale');
+        return this.simulateGameSession('MOTUS', difficulty);
+      })
+    );
+  }
+
+  // 🎯 Enregistrer un score via le nouveau serveur
+  saveScoreViaServer(userId: number, score: number, temps: number, motId: number): Observable<any> {
+    return this.http.post(`http://localhost:3002/api/scores/enregistrer`, {
+      userId,
+      score,
+      temps,
+      motId
+    });
+  }
 
 } // ✅ CORRECTION - Assurer une fermeture correcte de la classe

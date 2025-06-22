@@ -1,8 +1,8 @@
-// ✅ SECTION COMPLÈTE CORRIGÉE
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router'; // ✅ AJOUTÉ
+import { RouterLink } from '@angular/router';
+import { Observable } from 'rxjs';
 import { GameService } from '../../services/game.service';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
@@ -12,6 +12,7 @@ import { KeyboardComponent } from '../keyboard/keyboard.component';
 import { ToastComponent } from '../toast/toast.component';
 import { ModalComponent } from '../modal/modal.component';
 import { LeaderboardService } from '../../services/leaderboard.service';
+import { MotusApiService } from '../../services/motus-api.service';
 
 @Component({
   selector: 'app-game-grid',
@@ -24,7 +25,7 @@ import { LeaderboardService } from '../../services/leaderboard.service';
     KeyboardComponent, 
     ToastComponent, 
     ModalComponent,
-    RouterLink  // ✅ AJOUTÉ
+    RouterLink  
   ]
 })
 export class GameGridComponent implements OnInit {
@@ -54,7 +55,7 @@ export class GameGridComponent implements OnInit {
   // ✅ États du clavier
   keyStates: { [key: string]: string } = {};
 
-  // ✅ Statistiques de session (UNE SEULE DÉCLARATION)
+  // ✅ Statistiques de session
   sessionStats = {
     totalScore: 0,
     wordsFound: 0,
@@ -64,7 +65,7 @@ export class GameGridComponent implements OnInit {
     perfectWords: 0
   };
 
-  // ✅ Historique (UNE SEULE DÉCLARATION)
+  // ✅ Historique et scores
   wordsHistory: Array<{
     attempts: number;
     wordScore: number;
@@ -72,24 +73,14 @@ export class GameGridComponent implements OnInit {
     isPerfect: boolean;
   }> = [];
 
-  // ✅ AJOUTER CETTE LIGNE ICI
-  topScores: any[] = []; // Pour le podium TOP 3
+  topScores: any[] = [];
 
-  // ✅ Variables de timing (UNE SEULE DÉCLARATION)
+  // ✅ Variables de timing
   perfectWordStreak = 0;
   wordStartTime = Date.now();
 
-  // ✅ Scores
+  // ✅ Scores et difficulté
   activeScoreTab = 'session';
-  // topScores: Array<{
-  //   playerAlias: string;
-  //   totalScore: number;
-  //   wordsFound: number;
-  //   bestStreak: number;
-  //   date: string;
-  // }> = [];
-
-  // ✅ Difficulté avec Cauchemar
   currentDifficulty: 'facile' | 'moyen' | 'difficile' | 'cauchemar' = 'facile';
   showDifficultySelector = false;
 
@@ -100,13 +91,12 @@ export class GameGridComponent implements OnInit {
     public modalService: ModalService,
     private trouveMotService: TrouveMotService,
     private leaderboardService: LeaderboardService,
+    private motusApi: MotusApiService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
   ngOnInit() {
     if (isPlatformBrowser(this.platformId)) {
-      // ✅ CORRECTION - Supprimer la méthode inexistante
-      // this.gameService.useLocalWordsOnly(); // SUPPRIMER cette ligne
       this.checkAuthentication();
       
       // Charger la difficulté sauvegardée
@@ -118,16 +108,13 @@ export class GameGridComponent implements OnInit {
 
       // Charger les stats sauvegardées
       this.loadSavedStats();
-      
-      this.loadTopScores(); // Charger au démarrage
+      this.loadTopScores();
     }
   }
 
   // ✅ MÉTHODES D'AUTHENTIFICATION
   checkAuthentication() {
-    // ✅ CORRECTION - Supprimer l'appel à la méthode inexistante
-    // this.gameService.setDevelopmentMode(true); // SUPPRIMER cette ligne
-    this.isAuthenticated = true; // ✅ Définir manuellement l'authentification
+    this.isAuthenticated = true;
     if (this.isAuthenticated) {
       this.loadNewWord();
     }
@@ -147,7 +134,6 @@ export class GameGridComponent implements OnInit {
     this.loginLoading = true;
     this.loginError = '';
 
-    // Simulation de connexion réussie
     setTimeout(() => {
       if (isPlatformBrowser(this.platformId)) {
         localStorage.setItem('playerAlias', this.loginAlias);
@@ -197,12 +183,11 @@ export class GameGridComponent implements OnInit {
       localStorage.setItem('gameDifficulty', difficulty);
     }
     
-    // Messages par difficulté
     const messages = {
-      'facile': '🟢 Mode FACILE - Mots courants',
-      'moyen': '📚 Mode MOYEN - Mots variés',
-      'difficile': '🔥 Mode DIFFICILE - Mots via API',
-      'cauchemar': '💀 Mode CAUCHEMAR - Mots ultra-complexes !'
+      'facile': '🟢 Mode FACILE - Mots 3-4 lettres',
+      'moyen': '📚 Mode MOYEN - Mots 5-7 lettres',
+      'difficile': '🔥 Mode DIFFICILE - Mots 6-9 lettres',
+      'cauchemar': '💀 Mode CAUCHEMAR - Mots 6-12 lettres !'
     };
     
     this.toastService.info(messages[difficulty], 3000);
@@ -218,19 +203,19 @@ export class GameGridComponent implements OnInit {
     const previews = {
       'facile': {
         label: '🟢 FACILE',
-        description: 'Mots courants\nExemples: ARBRE, CHIEN, MAISON'
+        description: 'Mots courts (3-4 lettres)\nExemples: CHAT, BLEU, AUTO'
       },
       'moyen': {
         label: '📚 MOYEN', 
-        description: 'Mots variés\nExemples: JARDIN, VOITURE, VOYAGE'
+        description: 'Mots standards (5-7 lettres)\nExemples: MAISON, JARDIN, VOYAGE'
       },
       'difficile': {
         label: '🔥 DIFFICILE',
-        description: 'Mots rares via API\nExemples: AZYME, FJORD, SPHINX'
+        description: 'Mots complexes (6-9 lettres)\nExemples: COURAGE, MYSTERE, AVENTURE'
       },
       'cauchemar': {
         label: '💀 CAUCHEMAR',
-        description: 'Mots ultra-complexes (6-12 lettres)\nExemples: BYZANTINE, FREQUENCY'
+        description: 'Mots ultra-longs (6-12 lettres)\nExemples: EXTRAORDINAIRE, BYZANTINE'
       }
     };
     
@@ -238,57 +223,70 @@ export class GameGridComponent implements OnInit {
     this.toastService.info(`${preview.label}\n${preview.description}`, 4000);
   }
 
-  // ✅ MÉTHODES DE JEU
+  // ✅ CHARGEMENT DE MOTS - NOUVELLE LOGIQUE UNIFIÉE
+  // ✅ CORRIGER la méthode loadNewWord
   private loadNewWord() {
     this.isLoading = true;
     this.errorMessage = '';
     this.wordStartTime = Date.now();
     
-    if (this.currentDifficulty === 'difficile') {
-      this.loadWordFromTrouveMot(); // ✅ CORRECTION - utiliser la bonne méthode
-      return;
+    console.log(`🎯 Chargement mot via API trouve-mot unifiée (difficulté: ${this.currentDifficulty})`);
+    
+    let minLength: number;
+    let maxLength: number;
+    
+    // ✅ Définir les longueurs selon la difficulté
+    switch (this.currentDifficulty) {
+      case 'facile':
+        minLength = 3;
+        maxLength = 4;
+        console.log('🟢 Mode FACILE: 3-4 lettres');
+        break;
+      case 'moyen':
+        minLength = 5;
+        maxLength = 7;
+        console.log('📚 Mode MOYEN: 5-7 lettres');
+        break;
+      case 'difficile':
+        minLength = 6;
+        maxLength = 9;
+        console.log('🔥 Mode DIFFICILE: 6-9 lettres');
+        break;
+      case 'cauchemar':
+        minLength = 6;
+        maxLength = 12;
+        console.log('💀 Mode CAUCHEMAR: 6-12 lettres');
+        break;
+      default:
+        minLength = 5;
+        maxLength = 7;
     }
     
-    // ✅ NOUVEAU - Mode cauchemar avec mots longs
+    // ✅ CORRECTION - Utiliser la bonne méthode selon la difficulté avec types
+    let wordsObservable: Observable<string[]>;
+    
     if (this.currentDifficulty === 'cauchemar') {
-      this.loadWordFromCauchemar();
-      return;
+      // Pour cauchemar, utiliser sizemin
+      wordsObservable = this.trouveMotService.getWordsForCauchemar(minLength, 30);
+    } else {
+      // Pour autres difficultés, utiliser size classique
+      wordsObservable = this.trouveMotService.getWordsByLength(
+        Math.floor((minLength + maxLength) / 2), // Longueur moyenne
+        this.currentDifficulty,
+        20
+      );
     }
     
-    // Pour les autres difficultés (facile, moyen)
-    this.gameService.getRandomWord(this.currentDifficulty).subscribe({
-      next: (response) => {
-        if (response && response.gameId) {
-          this.gameId = response.gameId;
-          this.remainingAttempts = response.remainingAttempts;
-          this.hint = response.hint;
-          this.wordLength = response.length;
-          this.targetWord = 'X'.repeat(response.length);
-          
-          this.resetGrid(); // ✅ CORRECTION - utiliser la bonne méthode
-          this.isLoading = false;
-        }
-      },
-      error: (error) => {
-        this.errorMessage = `Erreur: ${error.message}`;
-        this.isLoading = false;
-        this.toastService.error(this.errorMessage, 4000);
-      }
-    });
-  }
-
-  // ✅ CORRECTION - Méthode pour charger un mot cauchemar avec vraie API
-  private loadWordFromCauchemar() {
-    console.log('💀 Chargement mot CAUCHEMAR (6-12 lettres) via vraie API...');
-    
-    // ✅ OPTION 1 - Utiliser sizemin pour avoir des mots longs garantis
-    this.trouveMotService.getWordsForCauchemar(6, 30).subscribe({
-      next: (words) => {
-        console.log(`💀 API sizemin réponse:`, words);
+    wordsObservable.subscribe({
+      next: (words: string[]) => { // ✅ TYPER le paramètre
+        console.log(`🎯 API trouve-mot réponse (${words.length} mots):`, words);
         
         if (words && words.length > 0) {
-          // Filtrer les mots entre 6 et 12 lettres
-          const validWords = words.filter(word => word.length >= 6 && word.length <= 12);
+          const validWords = words.filter((word: string) => // ✅ TYPER le paramètre
+            word.length >= minLength && word.length <= maxLength
+          );
+          
+          console.log(`🔍 Mots filtrés (${minLength}-${maxLength} lettres):`, validWords);
           
           if (validWords.length > 0) {
             const randomWord = validWords[Math.floor(Math.random() * validWords.length)].toUpperCase();
@@ -299,188 +297,250 @@ export class GameGridComponent implements OnInit {
             this.wordLength = randomWord.length;
             this.targetWord = randomWord;
             
-            this.resetGrid();
+            this.resetGrid(); // ✅ UTILISER resetGrid au lieu de initializeGrid
             this.isLoading = false;
             
-            this.toastService.success(`💀 Mot CAUCHEMAR chargé ! (${randomWord.length} lettres)`, 3000);
-            console.log('✅ Mot cauchemar chargé via API sizemin:', randomWord);
+            const difficultyEmojis = {
+              'facile': '🟢',
+              'moyen': '📚', 
+              'difficile': '🔥',
+              'cauchemar': '💀'
+            };
+            
+            this.toastService.success(
+              `${difficultyEmojis[this.currentDifficulty]} Mot ${this.currentDifficulty.toUpperCase()} chargé ! (${randomWord.length} lettres)`, 
+              3000
+            );
+            
+            console.log(`✅ Mot ${this.currentDifficulty} chargé:`, randomWord);
             return;
           }
         }
         
-        // Si pas de mots valides, utiliser fallback
-        console.warn('⚠️ Pas de mots valides via sizemin, tentative avec longueur spécifique...');
-        this.trySpecificLengthCauchemar();
+        // Fallback si pas de mots valides
+        console.warn('⚠️ Pas de mots valides trouvés, utilisation fallback');
+        this.loadFallbackWord();
       },
-      error: (error) => {
-        console.error('❌ Erreur chargement cauchemar via sizemin:', error);
-        this.trySpecificLengthCauchemar();
+      error: (error: any) => { // ✅ TYPER le paramètre
+        console.error('❌ Erreur API trouve-mot:', error);
+        this.loadFallbackWord();
       }
     });
   }
 
-  // ✅ NOUVEAU - Essayer avec une longueur spécifique via l'API /size/
-  private trySpecificLengthCauchemar() {
-    // Générer une longueur aléatoire entre 6 et 12 lettres
-    const minLength = 6;
-    const maxLength = 12;
-    const targetLength = Math.floor(Math.random() * (maxLength - minLength + 1)) + minLength;
+  // ✅ FALLBACK AVEC MOTS LOCAUX
+  private loadFallbackWord() {
+    console.warn('🔄 Fallback vers mots locaux');
     
-    console.log(`💀 Tentative API /size/ avec ${targetLength} lettres...`);
-    
-    this.trouveMotService.getWordsByLength(targetLength, 'cauchemar', 20).subscribe({
-      next: (words) => {
-        console.log(`💀 API /size/${targetLength} réponse:`, words);
-        
-        if (words && words.length > 0) {
-          const validWords = words.filter(word => word.length >= 6 && word.length <= 12);
-          
-          if (validWords.length > 0) {
-            const randomWord = validWords[Math.floor(Math.random() * validWords.length)].toUpperCase();
-            
-            this.gameId = Date.now();
-            this.remainingAttempts = 6;
-            this.hint = randomWord.charAt(0);
-            this.wordLength = randomWord.length;
-            this.targetWord = randomWord;
-            
-            this.resetGrid();
-            this.isLoading = false;
-            
-            this.toastService.success(`💀 Mot CAUCHEMAR (${randomWord.length}L) chargé !`, 3000);
-            console.log('✅ Mot cauchemar chargé via API /size/:', randomWord);
-            return;
-          }
-        }
-        
-        // Dernier recours : fallback traditionnel
-        console.warn('💀 Fallback vers méthode alternative...');
-        this.tryAlternativeLengthCauchemar();
-      },
-      error: (error) => {
-        console.error('❌ Erreur API /size/ cauchemar:', error);
-        this.tryAlternativeLengthCauchemar();
-      }
-    });
-  }
-
-  // ✅ NOUVEAU - Essayer d'autres longueurs en cas d'échec
-  private tryAlternativeLengthCauchemar() {
-    const fallbackLengths = [8, 7, 6, 9, 10, 11]; // Ordre de préférence
-    let currentIndex = 0;
-    
-    const tryNextLength = () => {
-      if (currentIndex >= fallbackLengths.length) {
-        // Dernier recours : utiliser un mot difficile normal
-        console.warn('💀 Fallback vers mode difficile pour cauchemar');
-        this.loadWordFromTrouveMot(); // ✅ CORRECTION - utiliser la bonne méthode
-        return;
-      }
-      
-      const length = fallbackLengths[currentIndex];
-      console.log(`💀 Tentative fallback avec ${length} lettres...`);
-      
-      this.trouveMotService.getWordsByLength(length, 'cauchemar', 30).subscribe({
-        next: (words) => {
-          const validWords = words.filter(word => word.length >= 6);
-          
-          if (validWords.length > 0) {
-            const randomWord = validWords[Math.floor(Math.random() * validWords.length)].toUpperCase();
-            
-            this.gameId = Date.now();
-            this.remainingAttempts = 6;
-            this.hint = randomWord.charAt(0);
-            this.wordLength = randomWord.length;
-            this.targetWord = randomWord;
-            
-            this.resetGrid(); // ✅ CORRECTION - utiliser la bonne méthode
-            this.isLoading = false;
-            
-            this.toastService.success(`💀 Mot CAUCHEMAR (${randomWord.length}L) chargé !`, 3000);
-            console.log('🔄 Mot cauchemar fallback chargé:', randomWord);
-          } else {
-            currentIndex++;
-            tryNextLength();
-          }
-        },
-        error: () => {
-          currentIndex++;
-          tryNextLength();
-        }
-      });
+    const fallbackWords = {
+      'facile': ['CHAT', 'CHIEN', 'AUTO', 'BLEU', 'VERT', 'GRIS'],
+      'moyen': ['MAISON', 'JARDIN', 'VOYAGE', 'MUSIQUE', 'BUREAU', 'PROJET'],
+      'difficile': ['COURAGE', 'MYSTERE', 'AVENTURE', 'SYMPHONIE', 'FREQUENCE'],
+      'cauchemar': ['EXTRAORDINAIRE', 'MAGNIFICENT', 'BYZANTINE', 'FREQUENCY', 'COMPLEXITY']
     };
     
-    tryNextLength();
+    const words = fallbackWords[this.currentDifficulty] || fallbackWords['moyen'];
+    const randomWord = words[Math.floor(Math.random() * words.length)];
+    
+    this.gameId = Date.now();
+    this.remainingAttempts = 6;
+    this.hint = randomWord.charAt(0);
+    this.wordLength = randomWord.length;
+    this.targetWord = randomWord;
+    
+    this.resetGrid();
+    this.isLoading = false;
+    
+    this.toastService.info(`🔄 Mot ${this.currentDifficulty} (fallback local) chargé !`, 3000);
+    console.log(`🔄 Mot fallback ${this.currentDifficulty}:`, randomWord);
   }
 
-  // ✅ CORRECTION - Méthode handleServerResponse
-  private handleServerResponse(response: any, guess: string, attemptNumber: number) {
-    console.log('📡 Traitement réponse serveur:', response);
+  // ✅ MÉTHODES DE GRILLE
+  private resetGrid() {
+    this.grid = [];
+    this.currentRow = 0;
+    this.currentCol = 0;
+    this.gameOver = false;
+    this.wordFound = false;
+    this.keyStates = {};
     
-    if (response.result && Array.isArray(response.result)) {
-      // ✅ Mise à jour de la grille avec la réponse serveur
-      for (let i = 0; i < guess.length; i++) {
-        const cell = this.grid[this.currentRow][i];
-        const serverState = response.result[i].status;
-        
-        // ✅ CORRECTION - Conversion des états serveur vers états CSS
-        switch (serverState) {
-          case 'correct':
-            cell.state = 'correct';
-            console.log(`✅ Lettre "${guess[i]}" correcte (position ${i})`);
-            break;
-          case 'present':
-            cell.state = 'present';
-            console.log(`🟡 Lettre "${guess[i]}" présente mais mal placée (position ${i})`);
-            break;
-          case 'absent':
-          case 'wrong':
-          case 'not_found':
-          default:
-            // ✅ FORCER l'état 'incorrect' pour toutes les lettres absentes
-            cell.state = 'incorrect';
-            console.log(`🔴 Lettre "${guess[i]}" absente -> état 'incorrect' (position ${i})`);
-            break;
-        }
-        
-        // ✅ DEBUG - Vérifier l'état final de chaque cellule
-        console.log(`📝 Cellule [${this.currentRow}][${i}]: "${cell.letter}" -> état: "${cell.state}"`);
+    // Créer une grille vide
+    for (let i = 0; i < 6; i++) {
+      const row = [];
+      for (let j = 0; j < this.wordLength; j++) {
+        row.push({
+          letter: '',
+          state: ''
+        });
       }
-      
-      // ✅ Mise à jour du clavier
-      const keyStates = response.result.map((r: any) => {
-        switch (r.status) {
-          case 'correct': return 'correct';
-          case 'present': return 'present';
-          case 'absent':
-          case 'wrong':
-          case 'not_found':
-          default: return 'incorrect';
-        }
-      });
-      
-      this.updateKeyStates(guess, keyStates);
+      this.grid.push(row);
     }
     
-    // ✅ Traiter la réponse comme d'habitude
-    this.handleWordCheckResponse(response, guess, attemptNumber);
+    // Placer l'indice sur la première case de chaque ligne
+    if (this.hint) {
+      for (let i = 0; i < 6; i++) {
+        this.grid[i][0].letter = this.hint;
+        this.grid[i][0].state = 'hint';
+      }
+      this.currentCol = 1;
+    }
+    
+    console.log('✅ Grille réinitialisée avec indice:', this.hint);
   }
 
-  // ✅ MÉTHODE MANQUANTE - À ajouter dans votre GameGridComponent
+  // ✅ GESTION DU CLAVIER
+  handleKeyPress(key: string) {
+    if (this.gameOver || this.isLoading) return;
+
+    if (key === 'ENTER') {
+      this.checkWord();
+    } else if (key === 'BACKSPACE') {
+      this.deleteLetter();
+    } else if (key.length === 1 && /[A-ZÀÂÄÉÈÊËÏÎÔÖÙÛÜŸÇ]/i.test(key)) {
+      this.addLetter(key.toUpperCase());
+    }
+  }
+
+  private addLetter(letter: string) {
+    if (this.currentCol < this.wordLength && this.currentRow < 6) {
+      this.grid[this.currentRow][this.currentCol].letter = letter;
+      this.currentCol++;
+    }
+  }
+
+  private deleteLetter() {
+    if (this.currentCol > (this.hint ? 1 : 0)) {
+      this.currentCol--;
+      this.grid[this.currentRow][this.currentCol].letter = '';
+    }
+  }
+
+  private checkWord() {
+    const currentRowLetters = this.grid[this.currentRow];
+    const guess = currentRowLetters.map(cell => cell.letter).join('');
+    
+    if (guess.length < this.wordLength) {
+      this.toastService.warning('Mot incomplet !', 2000);
+      return;
+    }
+    
+    const attemptNumber = this.currentRow + 1;
+    console.log(`🔍 Vérification du mot: "${guess}" (tentative ${attemptNumber})`);
+    
+    // Utiliser la vérification locale
+    this.checkWordLocally(guess, attemptNumber);
+  }
+
+  // ✅ VÉRIFICATION LOCALE DU MOT
+  private checkWordLocally(guess: string, attemptNumber: number) {
+    const target = this.targetWord;
+    console.log('🔍 Vérification locale:', { guess, target, attemptNumber });
+    
+    const result: Array<{status: 'correct' | 'present' | 'absent'}> = [];
+    
+    // Algorithme Motus standard
+    const targetLetters = target.split('');
+    const guessLetters = guess.split('');
+    const targetLetterCount: {[key: string]: number} = {};
+    
+    // Compter les lettres du mot cible
+    for (const letter of targetLetters) {
+      targetLetterCount[letter] = (targetLetterCount[letter] || 0) + 1;
+    }
+    
+    // Première passe : lettres correctes
+    for (let i = 0; i < guessLetters.length; i++) {
+      if (guessLetters[i] === targetLetters[i]) {
+        result[i] = { status: 'correct' };
+        targetLetterCount[guessLetters[i]]--;
+      } else {
+        result[i] = { status: 'absent' };
+      }
+    }
+    
+    // Deuxième passe : lettres présentes
+    for (let i = 0; i < guessLetters.length; i++) {
+      if (result[i].status === 'absent') {
+        if (targetLetterCount[guessLetters[i]] > 0) {
+          result[i] = { status: 'present' };
+          targetLetterCount[guessLetters[i]]--;
+        }
+      }
+    }
+    
+    // Mise à jour de la grille
+    for (let i = 0; i < guess.length; i++) {
+      const cell = this.grid[this.currentRow][i];
+      cell.letter = guessLetters[i];
+      
+      switch (result[i].status) {
+        case 'correct':
+          cell.state = 'correct';
+          break;
+        case 'present':
+          cell.state = 'present';
+          break;
+        case 'absent':
+        default:
+          cell.state = 'incorrect';
+          break;
+      }
+    }
+    
+    // Mise à jour du clavier
+    const keyStates = result.map(r => {
+      switch (r.status) {
+        case 'correct': return 'correct';
+        case 'present': return 'present';
+        case 'absent': 
+        default: return 'incorrect';
+      }
+    });
+    
+    this.updateKeyStates(guess, keyStates);
+
+    // Vérifier si le mot est trouvé
+    const won = guess === target;
+    const gameOver = won || this.currentRow >= 5;
+    
+    const mockResponse = {
+      won,
+      gameOver,
+      targetWord: gameOver ? target : undefined,
+      result,
+      remainingAttempts: this.remainingAttempts - 1
+    };
+    
+    this.handleWordCheckResponse(mockResponse, guess, attemptNumber);
+  }
+
+  // ✅ MISE À JOUR DES ÉTATS DU CLAVIER
+  private updateKeyStates(guess: string, states: string[]) {
+    for (let i = 0; i < guess.length; i++) {
+      const letter = guess[i];
+      const state = states[i];
+      
+      // Ne pas dégrader l'état (correct > present > incorrect)
+      if (!this.keyStates[letter] || 
+          (state === 'correct') ||
+          (state === 'present' && this.keyStates[letter] !== 'correct')) {
+        this.keyStates[letter] = state;
+      }
+    }
+  }
+
+  // ✅ TRAITEMENT DES RÉPONSES
   private handleWordCheckResponse(response: any, guess: string, attemptNumber: number) {
     console.log('🎯 Traitement réponse:', { response, guess, attemptNumber });
     
     if (response.won) {
-      // ✅ Mot trouvé !
       this.wordFound = true;
       this.gameOver = true;
       this.targetWord = response.targetWord || guess;
       
-      // Calculer le score
       const wordResult = this.calculateWordScore(attemptNumber);
       this.updateSessionStats(wordResult);
       
-      // Message de félicitations avec délai pour voir l'animation
       setTimeout(() => {
         const messages = [
           `🎉 Excellent ! Mot trouvé en ${attemptNumber} essai(s) !`,
@@ -491,7 +551,6 @@ export class GameGridComponent implements OnInit {
         const randomMessage = messages[Math.floor(Math.random() * messages.length)];
         this.toastService.success(randomMessage, 4000);
         
-        // Bonus pour les mots parfaits
         if (attemptNumber === 1) {
           setTimeout(() => {
             this.toastService.success('💎 PARFAIT ! Bonus de 100 points !', 3000);
@@ -500,16 +559,13 @@ export class GameGridComponent implements OnInit {
       }, 1000);
       
     } else if (response.gameOver || this.currentRow >= 5) {
-      // ✅ Jeu terminé - mot non trouvé
       this.wordFound = false;
       this.gameOver = true;
       this.targetWord = response.targetWord || this.targetWord;
       
-      // Réinitialiser les streaks
       this.sessionStats.currentStreak = 0;
       this.perfectWordStreak = 0;
       
-      // Message d'échec avec le mot correct
       setTimeout(() => {
         const failureMessages = [
           `😞 Dommage ! Le mot était : ${this.targetWord}`,
@@ -522,19 +578,16 @@ export class GameGridComponent implements OnInit {
       }, 1000);
       
     } else {
-      // ✅ Continuer le jeu - passer à la ligne suivante
       this.currentRow++;
       this.currentCol = 0;
       this.remainingAttempts = response.remainingAttempts || (this.remainingAttempts - 1);
       
-      // Si on a un hint sur la ligne suivante, commencer à la colonne 1
       if (this.hint && this.currentRow < 6) {
         this.grid[this.currentRow][0].letter = this.hint;
         this.grid[this.currentRow][0].state = 'hint';
         this.currentCol = 1;
       }
       
-      // Message d'encouragement selon le nombre de tentatives restantes
       const remainingAttempts = 6 - this.currentRow;
       if (remainingAttempts === 2) {
         this.toastService.warning('⚠️ Plus que 2 tentatives !', 2000);
@@ -542,43 +595,32 @@ export class GameGridComponent implements OnInit {
         this.toastService.warning('🚨 Dernière chance !', 2000);
       }
     }
-    
-    console.log('✅ État du jeu mis à jour:', {
-      gameOver: this.gameOver,
-      wordFound: this.wordFound,
-      currentRow: this.currentRow,
-      remainingAttempts: this.remainingAttempts
-    });
   }
 
-  // ✅ MÉTHODE POUR CALCULER LE SCORE (si elle n'existe pas déjà)
+  // ✅ CALCUL DU SCORE
   private calculateWordScore(attempts: number): {
     wordScore: number;
     bonusPoints: number;
     totalScore: number;
     isPerfect: boolean;
   } {
-    // Score de base décroissant selon le nombre de tentatives
     const baseScore = Math.max(100 - (attempts - 1) * 15, 10);
     let bonusPoints = 0;
     let isPerfect = false;
 
-    // ✅ Bonus selon le nombre de tentatives
     if (attempts === 1) {
-      bonusPoints += 100; // Parfait !
+      bonusPoints += 100;
       isPerfect = true;
     } else if (attempts === 2) {
-      bonusPoints += 50;  // Excellent
+      bonusPoints += 50;
     } else if (attempts === 3) {
-      bonusPoints += 25;  // Très bien
+      bonusPoints += 25;
     }
 
-    // ✅ Bonus de streak (série de victoires)
     if (this.sessionStats.currentStreak >= 3) {
       bonusPoints += this.sessionStats.currentStreak * 10;
     }
 
-    // ✅ Multiplicateur de difficulté
     const difficultyMultipliers = {
       'facile': 1,
       'moyen': 1.2,
@@ -589,15 +631,6 @@ export class GameGridComponent implements OnInit {
     const multiplier = difficultyMultipliers[this.currentDifficulty];
     const finalWordScore = Math.round((baseScore + bonusPoints) * multiplier);
 
-    console.log('💰 Calcul score:', {
-      baseScore,
-      bonusPoints,
-      multiplier,
-      finalWordScore,
-      attempts,
-      difficulty: this.currentDifficulty
-    });
-
     return {
       wordScore: finalWordScore,
       bonusPoints,
@@ -606,7 +639,7 @@ export class GameGridComponent implements OnInit {
     };
   }
 
-  // ✅ MISE À JOUR DES STATISTIQUES DE SESSION
+  // ✅ MISE À JOUR DES STATISTIQUES
   private updateSessionStats(wordResult: {
     wordScore: number;
     bonusPoints: number;
@@ -616,23 +649,19 @@ export class GameGridComponent implements OnInit {
     this.sessionStats.wordsFound++;
     this.sessionStats.currentStreak++;
     
-    // Mettre à jour le meilleur streak
     if (this.sessionStats.currentStreak > this.sessionStats.bestStreak) {
       this.sessionStats.bestStreak = this.sessionStats.currentStreak;
     }
     
-    // Compter les mots parfaits
     if (wordResult.isPerfect) {
       this.sessionStats.perfectWords++;
       this.perfectWordStreak++;
     }
     
-    // Calculer la moyenne
     this.sessionStats.averageScore = Math.round(
       this.sessionStats.totalScore / this.sessionStats.wordsFound
     );
 
-    // Ajouter à l'historique
     this.wordsHistory.push({
       attempts: 6 - this.remainingAttempts + 1,
       wordScore: wordResult.wordScore,
@@ -640,37 +669,30 @@ export class GameGridComponent implements OnInit {
       isPerfect: wordResult.isPerfect
     });
 
-    // Sauvegarder les stats
+    this.saveScoreViaBackend(wordResult.wordScore);
     this.saveStats();
+  }
+
+  // ✅ SAUVEGARDE VIA BACKEND
+  private saveScoreViaBackend(score: number) {
+    const userId = 1;
+    const temps = Math.round((Date.now() - this.wordStartTime) / 1000);
+    const motId = this.gameId || Date.now();
     
-    console.log('📊 Stats mises à jour:', this.sessionStats);
-  }
-
-  // ✅ MÉTHODES UTILITAIRES
-  getCurrentPlayerAlias(): string {
-    if (isPlatformBrowser(this.platformId)) {
-      return localStorage.getItem('playerAlias') || localStorage.getItem('gameAlias') || 'Joueur';
-    }
-    return 'Joueur';
-  }
-
-  changeAlias() {
-    this.modalService.showConfirm(
-      '✏️ Changer de pseudo',
-      'Quel est votre nouveau pseudo ?',
-      'Confirmer'
-    ).then((confirmed: boolean) => { // ✅ Utiliser .then() au lieu de .subscribe()
-      if (confirmed && isPlatformBrowser(this.platformId)) {
-        const newAlias = prompt('Nouveau pseudo:') || this.getCurrentPlayerAlias();
-        localStorage.setItem('playerAlias', newAlias);
-        this.toastService.success(`✅ Pseudo: ${newAlias}`, 2000);
+    this.motusApi.saveScore(userId, score, temps, motId).subscribe({
+      next: (response) => {
+        console.log('💾 Score sauvegardé via backend:', response);
+      },
+      error: (error) => {
+        console.warn('⚠️ Erreur sauvegarde score backend:', error);
       }
-    }).catch((error: any) => {
-      console.error('Erreur changement pseudo:', error);
     });
   }
 
+  // ✅ MÉTHODES DE CONTRÔLE DU JEU
   restartGame() {
+    console.log('🔄 Redémarrage jeu');
+    this.isLoading = true;
     this.loadNewWord();
   }
 
@@ -691,7 +713,7 @@ export class GameGridComponent implements OnInit {
       '🚪 Déconnexion',
       'Êtes-vous sûr ?',
       'Déconnexion'
-    ).then((confirmed: boolean) => { // ✅ Utiliser .then() au lieu de .subscribe()
+    ).then((confirmed: boolean) => {
       if (confirmed) {
         this.isAuthenticated = false;
         this.showLoginModal = false;
@@ -707,6 +729,31 @@ export class GameGridComponent implements OnInit {
     });
   }
 
+  // ✅ MÉTHODES UTILITAIRES
+  getCurrentPlayerAlias(): string {
+    if (isPlatformBrowser(this.platformId)) {
+      return localStorage.getItem('playerAlias') || localStorage.getItem('gameAlias') || 'Joueur';
+    }
+    return 'Joueur';
+  }
+
+  changeAlias() {
+    this.modalService.showConfirm(
+      '✏️ Changer de pseudo',
+      'Quel est votre nouveau pseudo ?',
+      'Confirmer'
+    ).then((confirmed: boolean) => {
+      if (confirmed && isPlatformBrowser(this.platformId)) {
+        const newAlias = prompt('Nouveau pseudo:') || this.getCurrentPlayerAlias();
+        localStorage.setItem('playerAlias', newAlias);
+        this.toastService.success(`✅ Pseudo: ${newAlias}`, 2000);
+      }
+    }).catch((error: any) => {
+      console.error('Erreur changement pseudo:', error);
+    });
+  }
+
+  // ✅ CHARGEMENT DU LEADERBOARD
   loadTopScores() {
     console.log('🔄 Chargement TOP 3...');
     
@@ -714,13 +761,12 @@ export class GameGridComponent implements OnInit {
       next: (scores) => {
         console.log('✅ Scores reçus:', scores);
         
-        // ✅ ADAPTER les données LeaderboardEntry vers le format attendu
         this.topScores = scores.slice(0, 3).map(score => ({
-          playerAlias: score.login,           // login → playerAlias
-          totalScore: score.score,            // score → totalScore  
-          wordsFound: score.words_found,      // words_found → wordsFound
-          bestStreak: 1,                      // Valeur par défaut
-          date: score.date_achieved           // date_achieved → date
+          playerAlias: score.login,
+          totalScore: score.score,
+          wordsFound: score.words_found,
+          bestStreak: 1,
+          date: score.date_achieved
         }));
         
         console.log('🏆 TOP 3 adapté:', this.topScores);
@@ -732,6 +778,7 @@ export class GameGridComponent implements OnInit {
     });
   }
 
+  // ✅ GESTION DES SCORES LOCAUX
   private saveScoreToTopScores() {
     const newScore = {
       playerAlias: this.getCurrentPlayerAlias(),
@@ -793,323 +840,5 @@ export class GameGridComponent implements OnInit {
       localStorage.setItem('sessionStats', JSON.stringify(this.sessionStats));
       localStorage.setItem('wordsHistory', JSON.stringify(this.wordsHistory));
     }
-  }
-
-  // ✅ CORRECTION - Méthode checkWordLocally
-  private checkWordLocally(guess: string, attemptNumber: number) {
-    const target = this.targetWord;
-    console.log('🔍 Vérification locale:', { guess, target, attemptNumber });
-    
-    // ✅ États CSS corrects pour Angular
-    const result: Array<{status: 'correct' | 'present' | 'absent'}> = [];
-    
-    // Algorithme Motus standard
-    const targetLetters = target.split('');
-    const guessLetters = guess.split('');
-    const targetLetterCount: {[key: string]: number} = {};
-    
-    // Compter les lettres du mot cible
-    for (const letter of targetLetters) {
-      targetLetterCount[letter] = (targetLetterCount[letter] || 0) + 1;
-    }
-    
-    // Première passe : lettres correctes (position exacte)
-    for (let i = 0; i < guessLetters.length; i++) {
-      if (guessLetters[i] === targetLetters[i]) {
-        result[i] = { status: 'correct' };
-        targetLetterCount[guessLetters[i]]--;
-      } else {
-        result[i] = { status: 'absent' }; // Temporaire
-      }
-    }
-    
-    // Deuxième passe : lettres présentes (mauvaise position)
-    for (let i = 0; i < guessLetters.length; i++) {
-      if (result[i].status === 'absent') {
-        if (targetLetterCount[guessLetters[i]] > 0) {
-          result[i] = { status: 'present' };
-          targetLetterCount[guessLetters[i]]--;
-        }
-      }
-    }
-    
-    // ✅ CORRECTION - MISE À JOUR DE LA GRILLE AVEC LES BONS ÉTATS CSS
-    for (let i = 0; i < guess.length; i++) {
-      const cell = this.grid[this.currentRow][i];
-      cell.letter = guessLetters[i];
-      
-      // ✅ FORCER les bons états qui correspondent au CSS
-      switch (result[i].status) {
-        case 'correct':
-          cell.state = 'correct';  // Carré rouge
-          console.log(`✅ LOCAL - Lettre "${guessLetters[i]}" correcte -> 'correct'`);
-          break;
-        case 'present':
-          cell.state = 'present';  // Cercle jaune
-          console.log(`🟡 LOCAL - Lettre "${guessLetters[i]}" présente -> 'present'`);
-          break;
-        case 'absent':
-        default:
-          // ✅ IMPORTANT - Forcer 'incorrect' pour fond bleu
-          cell.state = 'incorrect'; // Fond bleu
-          console.log(`🔴 LOCAL - Lettre "${guessLetters[i]}" absente -> 'incorrect'`);
-          break;
-      }
-      
-      // ✅ DEBUG - Vérifier l'état final appliqué
-      console.log(`📝 LOCAL - Cellule [${this.currentRow}][${i}]: "${cell.letter}" -> état final: "${cell.state}"`);
-    }
-    
-    // ✅ MISE À JOUR DU CLAVIER
-    const keyStates = result.map(r => {
-      switch (r.status) {
-        case 'correct': return 'correct';
-        case 'present': return 'present';
-        case 'absent': 
-        default: return 'incorrect';
-      }
-    });
-    
-    this.updateKeyStates(guess, keyStates);
-
-    // Vérifier si le mot est trouvé
-    const won = guess === target;
-    const gameOver = won || this.currentRow >= 5;
-    
-    console.log('🎯 Résultat validation:', { won, gameOver, result });
-    
-    const mockResponse = {
-      won,
-      gameOver,
-      targetWord: gameOver ? target : undefined,
-      result,
-      remainingAttempts: this.remainingAttempts - 1
-    };
-    
-    this.handleWordCheckResponse(mockResponse, guess, attemptNumber);
-  }
-
-  // ✅ CORRECTION - Méthode updateKeyStates
-  private updateKeyStates(guess: string, states: string[]) {
-    console.log('⌨️ Mise à jour états clavier:', { guess, states });
-    
-    for (let i = 0; i < guess.length; i++) {
-      const letter = guess[i];
-      const state = states[i];
-      
-      console.log(`⌨️ Lettre "${letter}" -> nouvel état: "${state}"`);
-      
-      // ✅ Priorité des états : correct > present > incorrect
-      if (state === 'correct') {
-        this.keyStates[letter] = 'correct';
-      } else if (state === 'present' && this.keyStates[letter] !== 'correct') {
-        this.keyStates[letter] = 'present';
-      } else if (state === 'incorrect' && !this.keyStates[letter]) {
-        // ✅ CORRECTION - Bien utiliser 'incorrect'
-        this.keyStates[letter] = 'incorrect';
-        console.log(`⌨️ CORRECTION - Lettre "${letter}" mise à jour -> 'incorrect'`);
-      }
-    }
-    
-    console.log('⌨️ États finaux du clavier:', this.keyStates);
-  }
-
-  // ✅ GARDER SEULEMENT CETTE VERSION - handleKeyPress
-  handleKeyPress(key: string) {
-    if (this.isLoading || this.gameOver) {
-      return;
-    }
-
-    if (key === 'ENTER') {
-      this.checkWord();
-    } else if (key === 'BACKSPACE') {
-      this.deleteLetter();
-    } else if (key.length === 1 && key.match(/[A-Z]/)) {
-      this.addLetter(key);
-    }
-  }
-
-  // ✅ AJOUTER - Méthode pour charger un mot difficile via trouve-mot
-  private loadWordFromTrouveMot() {
-    console.log('🔥 Chargement mot DIFFICILE via API trouve-mot.fr...');
-    
-    this.trouveMotService.getRandomWord().subscribe({
-      next: (word) => {
-        if (word && word.length >= 3) {
-          const randomWord = word.toUpperCase();
-          
-          this.gameId = Date.now();
-          this.remainingAttempts = 6;
-          this.hint = randomWord.charAt(0);
-          this.wordLength = randomWord.length;
-          this.targetWord = randomWord;
-          
-          this.resetGrid();
-          this.isLoading = false;
-          
-          this.toastService.success(`🔥 Mot DIFFICILE chargé via API ! (${randomWord.length} lettres)`, 3000);
-          console.log('✅ Mot difficile chargé:', randomWord);
-        } else {
-          console.warn('⚠️ Mot difficile invalide, fallback vers alternative');
-          this.loadAlternativeDifficultWord();
-        }
-      },
-      error: (error) => {
-        console.error('❌ Erreur chargement difficile:', error);
-        this.loadAlternativeDifficultWord();
-      }
-    });
-  }
-
-  // ✅ AJOUTER - Fallback pour mode difficile
-  private loadAlternativeDifficultWord() {
-    this.trouveMotService.getWordsByLengthAlternative(5).subscribe({
-      next: (words) => {
-        if (words && words.length > 0) {
-          const randomWord = words[Math.floor(Math.random() * words.length)].toUpperCase();
-          
-          this.gameId = Date.now();
-          this.remainingAttempts = 6;
-          this.hint = randomWord.charAt(0);
-          this.wordLength = randomWord.length;
-          this.targetWord = randomWord;
-          
-          this.resetGrid();
-          this.isLoading = false;
-          
-          this.toastService.success(`🔥 Mot DIFFICILE (local) chargé ! (${randomWord.length} lettres)`, 3000);
-          console.log('🔄 Mot difficile local chargé:', randomWord);
-        } else {
-          this.fallbackToEasyMode();
-        }
-      },
-      error: () => {
-        this.fallbackToEasyMode();
-      }
-    });
-  }
-
-  // ✅ AJOUTER - Fallback final vers mode facile
-  private fallbackToEasyMode() {
-    this.toastService.warning('🔄 Difficile indisponible, fallback vers Facile', 3000);
-    this.currentCol = 0;
-    this.gameOver = false;
-    this.wordFound = false;
-    this.errorMessage = '';
-    this.keyStates = {};
-
-    // Créer une nouvelle grille
-    for (let i = 0; i < 6; i++) {
-      const row = [];
-      for (let j = 0; j < this.wordLength; j++) {
-        row.push({ letter: '', state: 'empty' });
-      }
-      this.grid.push(row);
-    }
-
-    // Si on a un hint, le placer sur la première ligne
-    if (this.hint) {
-      this.grid[0][0].letter = this.hint;
-      this.grid[0][0].state = 'hint';
-      this.currentCol = 1;
-    }
-
-    console.log('🔄 Grille réinitialisée:', {
-      wordLength: this.wordLength,
-      hint: this.hint,
-      currentCol: this.currentCol
-    });
-  }
-
-  // ✅ AJOUTER - Méthode pour vérifier un mot
-  private checkWord() {
-    if (this.currentCol !== this.wordLength || !this.gameId) {
-      console.warn('⚠️ Mot incomplet ou pas de gameId', { 
-        currentCol: this.currentCol, 
-        wordLength: this.wordLength, 
-        gameId: this.gameId 
-      });
-      return;
-    }
-
-    const guess = this.grid[this.currentRow].map(cell => cell.letter).join('');
-    const attemptNumber = this.currentRow + 1;
-    
-    console.log('✅ Vérification mot:', { guess, attemptNumber, difficulty: this.currentDifficulty });
-    
-    // ✅ Gérer difficile ET cauchemar en local
-    if (this.currentDifficulty === 'difficile' || this.currentDifficulty === 'cauchemar') {
-      this.checkWordLocally(guess, attemptNumber);
-    } else {
-      // Vérification via GameService pour facile et moyen
-      this.gameService.submitGuess(guess, this.gameId, attemptNumber).subscribe({
-        next: (response) => {
-          console.log('📡 Réponse serveur:', response);
-          this.handleServerResponse(response, guess, attemptNumber);
-        },
-        error: (error) => {
-          console.error('❌ Erreur vérification serveur:', error);
-          this.errorMessage = 'Erreur lors de la vérification';
-          this.toastService.error(this.errorMessage, 3000);
-        }
-      });
-    }
-  }
-
-  // ✅ AJOUTER - Méthode pour ajouter une lettre
-  private addLetter(letter: string) {
-    if (this.currentCol < this.wordLength && this.currentRow < 6) {
-      this.grid[this.currentRow][this.currentCol].letter = letter.toUpperCase();
-      this.currentCol++;
-      console.log(`📝 Lettre ajoutée: ${letter} à [${this.currentRow}][${this.currentCol - 1}]`);
-    }
-  }
-
-  // ✅ AJOUTER - Méthode pour supprimer une lettre
-  private deleteLetter() {
-    if (this.currentCol > 0) {
-      // Si on a un hint sur la première colonne, ne pas l'effacer
-      const minCol = (this.hint && this.currentRow === 0) ? 1 : 0;
-      
-      if (this.currentCol > minCol) {
-        this.currentCol--;
-        this.grid[this.currentRow][this.currentCol].letter = '';
-        console.log(`🗑️ Lettre supprimée à [${this.currentRow}][${this.currentCol}]`);
-      }
-    }
-  }
-
-  // À ajouter dans game-grid.component.ts (vers la fin des méthodes)
-  resetGrid() {
-    console.log('🔄 Réinitialisation de la grille');
-    
-    // Créer une nouvelle grille vide
-    this.grid = [];
-    for (let i = 0; i < 6; i++) {
-      const row = [];
-      for (let j = 0; j < this.wordLength; j++) {
-        row.push({ letter: '', state: 'empty' });
-      }
-      this.grid.push(row);
-    }
-
-    // ✅ IMPORTANT : Placer l'indice sur la première ligne si disponible
-    if (this.hint) {
-      this.grid[0][0].letter = this.hint;
-      this.grid[0][0].state = 'hint';
-      this.currentCol = 1; // Commencer après l'indice
-    } else {
-      this.currentCol = 0; // Commencer au début si pas d'indice
-    }
-
-    // Réinitialiser les autres propriétés
-    this.currentRow = 0;
-    this.gameOver = false;
-    this.wordFound = false;
-    this.errorMessage = '';
-    this.keyStates = {};
-    this.wordStartTime = Date.now();
-
-    console.log('✅ Grille réinitialisée avec indice:', this.hint);
   }
 }

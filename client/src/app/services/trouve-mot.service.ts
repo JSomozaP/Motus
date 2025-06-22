@@ -7,7 +7,8 @@ import { catchError, map, timeout } from 'rxjs/operators';
   providedIn: 'root'
 })
 export class TrouveMotService {
-  private apiUrl = 'http://localhost:3001/api/proxy/trouve-mot';
+  // ✅ CHANGER LE PORT
+  private apiUrl = 'http://localhost:3002/api/proxy/trouve-mot'; // ✅ 3001 → 3002
   private isOnline = true;
 
   constructor(private http: HttpClient) {}
@@ -111,9 +112,9 @@ export class TrouveMotService {
 
   // ✅ AMÉLIORATION - Récupérer des mots par longueur via proxy
   getWordsByLength(length: number, difficulty: string = 'difficile', maxResults: number = 20): Observable<string[]> {
-    // ✅ CORRECTION - Utiliser la vraie URL de l'API trouve-mot.fr
+    // ✅ CORRECTION - Simplifier getWordsByLength pour éviter la confusion
     const apiUrl = `${this.apiUrl}/size/${length}/${maxResults}`;
-    console.log(`💀 CORRECTION - Appel API trouve-mot.fr: ${apiUrl}`);
+    console.log(`🎯 Appel API trouve-mot.fr classique: ${apiUrl}`);
     
     return this.http.get<any>(apiUrl).pipe(
       timeout(5000),
@@ -123,8 +124,6 @@ export class TrouveMotService {
         let words: string[] = [];
         
         if (Array.isArray(response)) {
-          console.log(`📊 API a retourné ${response.length} mots`);
-          
           words = response
             .map(item => {
               let word = '';
@@ -133,70 +132,23 @@ export class TrouveMotService {
               } else if (item && item.name) {
                 word = item.name;
               }
-              
-              const cleanWord = this.cleanAndValidateWord(word);
-              console.log(`🧹 Mot API: "${word}" -> "${cleanWord}" (${cleanWord.length}L)`);
-              return cleanWord;
+              return this.cleanAndValidateWord(word);
             })
-            .filter(word => {
-              const isValidLength = word && word.length === length;
-              if (!isValidLength) {
-                console.warn(`⚠️ Mot "${word}" (${word.length}L) rejeté pour longueur ${length}L`);
-              }
-              return isValidLength;
-            });
-            
-          console.log(`✅ Mots API valides après filtrage: ${words.length}`, words);
+            .filter(word => word && word.length === length);
         }
         
-        // ✅ AMÉLIORATION SPÉCIALE - Pour cauchemar, compléter avec mots locaux si nécessaire
-        if (difficulty === 'cauchemar') {
-          console.log(`💀 Mode cauchemar - mots API: ${words.length}`);
-          
-          if (words.length < 5) {
-            console.log(`💀 Pas assez de mots API (${words.length}), ajout mots locaux...`);
-            
-            const localLongWords = this.hardWords.filter(word => 
-              word.length === length && 
-              word.length >= 6 && 
-              word.length <= 12
-            );
-            
-            console.log(`💀 Mots locaux trouvés pour ${length} lettres:`, localLongWords.length);
-            words = [...words, ...localLongWords];
-          }
-        } else if (words.length < maxResults) {
-          // Pour autres difficultés, compléter avec mots locaux
+        // Compléter avec mots locaux si nécessaire
+        if (words.length < maxResults) {
           const localWords = this.hardWords.filter(word => word.length === length);
-          words = [...words, ...localWords];
+          words = [...words, ...localWords].slice(0, maxResults);
         }
         
-        console.log(`✅ FINAL - ${words.length} mots de ${length} lettres récupérés (${difficulty})`);
-        const shuffled = this.shuffleArray(words).slice(0, maxResults);
-        console.log(`🎲 Mots sélectionnés:`, shuffled.slice(0, 3), '...');
-        return shuffled;
+        return this.shuffleArray(words);
       }),
       catchError((error) => {
-        console.error(`❌ Erreur API trouve-mot.fr pour ${length} lettres:`, error);
-        
-        // ✅ Fallback intelligent selon la difficulté
-        let localWords: string[];
-        if (difficulty === 'cauchemar') {
-          localWords = this.hardWords.filter(word => 
-            word.length === length && 
-            word.length >= 6 && 
-            word.length <= 12
-          );
-          
-          if (localWords.length < 5) {
-            localWords = this.hardWords.filter(word => word.length >= 6 && word.length <= 12);
-            console.log(`💀 Fallback étendu cauchemar: ${localWords.length} mots (6-12 lettres)`);
-          }
-        } else {
-          localWords = this.hardWords.filter(word => word.length === length);
-        }
-        
-        console.log(`🔄 Utilisation fallback local: ${localWords.length} mots`);
+        console.error(`❌ Erreur API pour ${length} lettres:`, error);
+        // Fallback direct sur mots locaux
+        const localWords = this.hardWords.filter(word => word.length === length);
         return of(this.shuffleArray(localWords).slice(0, maxResults));
       })
     );

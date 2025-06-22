@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs'; // ✅ AJOUTEZ 'of'
+import { map, catchError } from 'rxjs/operators'; // ✅ AJOUTEZ 'map, catchError'
 import { environment } from '../../environments/environment';
 
 export interface LeaderboardEntry {
@@ -23,7 +24,8 @@ export interface UserStats {
   providedIn: 'root'
 })
 export class LeaderboardService {
-  private apiUrl = `${environment.apiUrl}/leaderboard`;
+  // ✅ DIRECT PORT UPDATE
+  private apiUrl = 'http://localhost:3002/api/leaderboard';
 
   constructor(private http: HttpClient) {}
 
@@ -51,5 +53,13 @@ export class LeaderboardService {
   // ✅ STATISTIQUES UTILISATEUR
   getUserStats(userId: number): Observable<UserStats> {
     return this.http.get<UserStats>(`${this.apiUrl}/user-stats/${userId}`);
+  }
+
+  // ✅ MÉTHODE DE TEST AVEC IMPORTS CORRECTS
+  testConnection(): Observable<boolean> {
+    return this.http.get(`${this.apiUrl}/test`).pipe(
+      map(() => true),
+      catchError(() => of(false))
+    );
   }
 }

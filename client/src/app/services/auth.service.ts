@@ -1,8 +1,9 @@
 import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, tap } from 'rxjs';
+import { Observable, BehaviorSubject, tap, of } from 'rxjs';
 import { Router } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
+import { catchError } from 'rxjs/operators';
 
 interface LoginResponse {
   token: string;
@@ -17,7 +18,8 @@ interface LoginResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = 'http://localhost:3001/api/auth';
+  // ✅ CHANGER LE PORT VERS VOTRE NOUVEAU SERVEUR
+  private apiUrl = 'http://localhost:3002/api/auth'; // ✅ 3001 → 3002
   private tokenKey = 'token';
   private isLoggedInSubject = new BehaviorSubject<boolean>(this.hasToken());
 
@@ -66,5 +68,15 @@ export class AuthService {
       return null;
     }
     return localStorage.getItem(this.tokenKey) || sessionStorage.getItem(this.tokenKey);
+  }
+
+  // ✅ AJOUTER MÉTHODE DE TEST DE CONNEXION
+  testConnection(): Observable<any> {
+    return this.http.get(`${this.apiUrl}/test`).pipe(
+      catchError(error => {
+        console.error('❌ Erreur connexion auth:', error);
+        return of({ error: 'Connexion impossible' });
+      })
+    );
   }
 }
